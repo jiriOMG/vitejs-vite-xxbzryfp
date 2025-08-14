@@ -252,14 +252,15 @@ export default function App() {
     [recommendedModel, devBand, accuracy, config]
   );
 
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        fontFamily: 'system-ui, Arial',
-        color: '#111',
-      }}
-    >
+return (
+  <div
+    className="app"
+    style={{
+      minHeight: '100vh',
+      fontFamily: 'system-ui, Arial',
+      color: '#111',
+    }}
+  >
       <div style={{ maxWidth: 960, margin: '0 auto', padding: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 600 }}>
           Konfigurátor časových serverů Elproma NTS
@@ -269,18 +270,11 @@ export default function App() {
         </p>
 
         {/* Progress */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4,1fr)',
-            gap: 8,
-            margin: '16px 0 24px',
-          }}
-        >
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={pill(i <= step)} />
-          ))}
-        </div>
+<div className="progress">
+  {[0,1,2,3].map(i => (
+    <div key={i} className={`progress__bar ${i<=step ? 'is-active' : ''}`} />
+  ))}
+</div>
 
         {/* 1) Devices */}
         {step === 0 && (
@@ -710,26 +704,9 @@ export default function App() {
                   </button>
                 </div>
 
-                <div
-                  style={{
-                    border: '1px solid #eee',
-                    borderRadius: 12,
-                    padding: 10,
-                    fontSize: 12,
-                  }}
-                >
-                 <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 10, fontSize: 12 }}>
-  <div style={{ fontWeight: 600, marginBottom: 4 }}>Permalink</div>
-  <div
-    style={{
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-    }}
-    title={shareUrl}
-  >
-    {shareUrl}
-  </div>
+<div className="permalink" style={{ border:'1px solid #eee', borderRadius:12, padding:10, fontSize:12 }}>
+  <div style={{ fontWeight:600, marginBottom:6 }}>Permalink</div>
+  <textarea readOnly value={shareUrl} />
 </div>
 
                 </div>
