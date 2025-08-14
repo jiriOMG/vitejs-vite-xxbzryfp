@@ -7,6 +7,15 @@ import { useEffect, useMemo, useState } from 'react';
  */
 
 /* ---------- Data ---------- */
+<div className="progress" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,margin:'16px 0 24px'}}>
+  {[0,1,2,3].map((i) => (
+    <div
+      key={i}
+      className={'progress__bar' + (i <= step ? ' is-active' : '')}
+    />
+  ))}
+</div>
+
 type ModelId = 'nts-pico3' | 'nts-3000' | 'nts-4000' | 'nts-5000';
 type DevBand = 'small' | 'medium' | 'large' | 'xl';
 type AccuracyId = 'ntp_ms' | 'ptp_ent' | 'ptp_prtc' | 'eprtc';
@@ -704,7 +713,10 @@ return (
                   </button>
                 </div>
 
-<div className="permalink" style={{ border:'1px solid #eee', borderRadius:12, padding:10, fontSize:12 }}>
+<div
+  className="permalink"
+  style={{ border:'1px solid #eee', borderRadius:12, padding:10, fontSize:12 }}
+>
   <div style={{ fontWeight:600, marginBottom:6 }}>Permalink</div>
   <textarea readOnly value={shareUrl} />
 </div>
