@@ -718,19 +718,20 @@ export default function App() {
                     fontSize: 12,
                   }}
                 >
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                    Permalink
-                  </div>
-                  <div
-                    style={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title={shareUrl}
-                  >
-                    {shareUrl}
-                  </div>
+                 <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 10, fontSize: 12 }}>
+  <div style={{ fontWeight: 600, marginBottom: 4 }}>Permalink</div>
+  <div
+    style={{
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    }}
+    title={shareUrl}
+  >
+    {shareUrl}
+  </div>
+</div>
+
                 </div>
               </div>
             </div>
