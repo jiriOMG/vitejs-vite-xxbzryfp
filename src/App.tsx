@@ -40,7 +40,8 @@ const MODELS: ModelRec[] = [
     name: 'NTS-PICO3',
     segment: 'Kompaktní | NTP/PTP (edge)',
     image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
-    datasheet: 'https://www.elpromaelectronics.com/products/',
+    // Aktuální datasheet (brochure) pro PICO3:
+    datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/04/TimeSystems_NTS-pico3_brochure_070125-fqrtq4.pdf',
     defaults: { oscillator: 'TCXO', gnss: ['GNSS'], lan: 1, sfp: 0, power: 'Single', redundantGnss: false },
     notes: 'Pro malé sítě (desítky klientů), přesnost ms (NTP) / základní PTP.',
   },
@@ -49,7 +50,7 @@ const MODELS: ModelRec[] = [
     name: 'NTS-3000',
     segment: 'PTP Grandmaster | NTP Stratum-1',
     image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
-    datasheet: 'https://www.elpromaelectronics.com/products/',
+    datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_3000_120525-tamqzn.pdf',
     defaults: { oscillator: 'OCXO', gnss: ['GNSS'], lan: 2, sfp: 0, power: 'Single', redundantGnss: false },
     notes: 'Pro stovky klientů, enterprise PTP (sub-ms až desítky µs).',
   },
@@ -58,7 +59,7 @@ const MODELS: ModelRec[] = [
     name: 'NTS-4000',
     segment: 'PTP/PRTC-A | vyšší kapacita',
     image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
-    datasheet: 'https://www.elpromaelectronics.com/products/',
+    datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_4000_120525-t2ham9.pdf',
     defaults: { oscillator: 'OCXO', gnss: ['GNSS'], lan: 4, sfp: 2, power: 'Redundant', redundantGnss: true },
     notes:
       'Pro stovky až tisíce klientů, SFP, redundance, sub-µs (telekom/utility). Duální napájení je součástí (automaticky).',
@@ -68,7 +69,7 @@ const MODELS: ModelRec[] = [
     name: 'NTS-5000',
     segment: 'ePRTC / PRTC A/B | rubidium',
     image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
-    datasheet: 'https://www.elpromaelectronics.com/products/',
+    datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_5000_120525-eozbhw.pdf',
     defaults: { oscillator: 'Rb', gnss: ['GNSS'], lan: 6, sfp: 2, power: 'Redundant', redundantGnss: true },
     notes:
       'Pro velké/kritické instalace, ePRTC, dlouhý holdover, tisíce klientů. Duální napájení je součástí (automaticky).',
