@@ -424,3 +424,186 @@ export default function App() {
                 </p>
               </div>
             </div>
+            <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'space-between' }}>
+              <button onClick={() => setStep(0)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
+                Zpět
+              </button>
+              <button
+                onClick={() => setStep(2)}
+                style={{ padding: '10px 14px', borderRadius: 10, background: '#111', color: '#fff', border: '1px solid #111' }}
+              >
+                Pokračovat
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* 2) Doplňky */}
+        {step === 2 && (
+          <section style={box}>
+            <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
+              <b>3) Volitelné doplňky</b>
+            </div>
+            <div style={{ padding: 24, display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
+              <div>
+                {ACCESSORIES.map((a) => {
+                  const checked = config.accessories.includes(a.name);
+                  const disabled = a.allowed && !a.allowed.includes(config.model);
+                  const hint =
+                    a.id === 'psu' && disabled ? 'Pouze pro model NTS-3000' : undefined;
+
+                  return (
+                    <label
+                      key={a.id}
+                      title={hint}
+                      style={{
+                        display: 'flex',
+                        gap: 12,
+                        alignItems: 'center',
+                        padding: 12,
+                        border: '1px solid #e5e5e5',
+                        borderRadius: 12,
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        marginBottom: 8,
+                        opacity: disabled ? 0.55 : 1,
+                        background: disabled ? '#fafafa' : undefined,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={disabled}
+                        checked={checked}
+                        onChange={(e) => {
+                          if (disabled) return;
+                          const set = new Set(config.accessories);
+                          e.target.checked ? set.add(a.name) : set.delete(a.name);
+                          setConfig({ ...config, accessories: Array.from(set) });
+                        }}
+                      />
+                      <span>{a.name}{hint ? ' (jen NTS-3000)' : ''}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div style={{ background: '#fafafa', padding: 16, borderRadius: 12, fontSize: 14 }}>
+                <div style={{ fontWeight: 600 }}>Doporučený model</div>
+                <div style={{ fontWeight: 600, marginTop: 6 }}>{recommendedModel.name}</div>
+                <div style={{ fontSize: 12, color: '#666' }}>{recommendedModel.segment}</div>
+                <p style={{ fontSize: 12, color: '#666', marginTop: 8 }}>{recommendedModel.notes}</p>
+              </div>
+            </div>
+            <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'space-between' }}>
+              <button onClick={() => setStep(1)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
+                Zpět
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                style={{ padding: '10px 14px', borderRadius: 10, background: '#111', color: '#fff', border: '1px solid #111' }}
+              >
+                Pokračovat
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* 3) Kontakty & export */}
+        {step === 3 && (
+          <section style={box}>
+            <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
+              <b>4) Kontakty & export</b>
+            </div>
+            <div style={{ padding: 24, display: 'grid', gap: 24, gridTemplateColumns: '1fr 1fr' }}>
+              <div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, color: '#555' }}>Společnost</label>
+                  <input
+                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
+                    value={config.company}
+                    onChange={(e) => setConfig({ ...config, company: e.target.value })}
+                    placeholder="Název společnosti"
+                  />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, color: '#555' }}>Kontakt</label>
+                  <input
+                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
+                    value={config.contact}
+                    onChange={(e) => setConfig({ ...config, contact: e.target.value })}
+                    placeholder="E-mail / telefon"
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: '#555' }}>Poznámky</label>
+                  <textarea
+                    rows={4}
+                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
+                    value={config.notes}
+                    onChange={(e) => setConfig({ ...config, notes: e.target.value })}
+                    placeholder="Požadavky, normy, prostředí…"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ background: '#fafafa', borderRadius: 12, padding: 16, marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Shrnutí</div>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, color: '#333' }}>{summary}</pre>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(shareUrl)}
+                    style={{ padding: '10px 14px', borderRadius: 10, background: '#111', color: '#fff', border: '1px solid #111' }}
+                  >
+                    Zkopírovat odkaz
+                  </button>
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([JSON.stringify({ decision: { devBand, accuracy }, ...config }, null, 2)], {
+                        type: 'application/json',
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${recommendedModel.id}-konfigurace.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}
+                  >
+                    Stáhnout JSON
+                  </button>
+                </div>
+
+                <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 10, fontSize: 12 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Permalink</div>
+                  <textarea readOnly value={shareUrl} style={{ width: '100%', height: 80 }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'space-between' }}>
+              <button onClick={() => setStep(2)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
+                Zpět
+              </button>
+              <button
+                onClick={() => {
+                  setStep(0);
+                  setConfig((c) => ({ ...c, accessories: [], company: '', contact: '', notes: '' }));
+                }}
+                style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}
+              >
+                Nová konfigurace
+              </button>
+            </div>
+          </section>
+        )}
+
+        <div style={{ marginTop: 24, fontSize: 12, color: '#666' }}>
+          © {new Date().getFullYear()} Konfigurátor – rozhodovací průvodce (interní testování).
+        </div>
+      </div>
+    </div>
+  );
+}
