@@ -26,6 +26,13 @@ type ModelRec = {
   notes: string;
 };
 
+type Accessory = {
+  id: string;
+  name: string;
+  /** pokud je uvedeno, doplněk je povolen jen pro tyto modely */
+  allowed?: ModelId[];
+};
+
 /* ---------- Data ---------- */
 const MODELS: ModelRec[] = [
   {
@@ -66,9 +73,12 @@ const MODELS: ModelRec[] = [
   },
 ];
 
-const ACCESSORIES = [
+const ACCESSORIES: Accessory[] = [
+  // NOVÉ: náhradní anténa
+  { id: 'antenna', name: 'NTS-antenna – náhradní anténa (1 ks je již v balení)' },
   { id: 'irig', name: 'IRIG-B IN/OUT module w/ 1PPS output' },
-  { id: 'psu', name: 'Dual Redundant Power Supply' },
+  // PSU jen pro NTS-3000:
+  { id: 'psu', name: 'Dual Redundant Power Supply', allowed: ['nts-3000'] },
   { id: 'fo', name: 'FO Comm Set for GNSS Antenna/Receiver' },
   { id: '5071a', name: '5071A special support (firmware)' },
 ];
@@ -133,12 +143,14 @@ export default function App() {
     notes: '',
   }));
 
+  // načtení z URL
   useEffect(() => {
     const c = new URLSearchParams(window.location.search).get('c');
     const dec = c ? decodeConfig(c) : null;
     if (dec) setConfig(dec);
   }, []);
 
+  // doporučení + defaulty při změně rozhodování
   const recommendedId = useMemo(() => recommendModel(devBand, accuracy), [devBand, accuracy]);
   const recommendedModel = useMemo(() => MODELS.find((m) => m.id === recommendedId)!, [recommendedId]);
 
@@ -156,10 +168,26 @@ export default function App() {
     }));
   }, [recommendedId]);
 
+  // při změně modelu odstraň nepovolené doplňky (např. PSU u jiných než NTS-3000)
   useEffect(() => {
-    const wantsRedundant = config.accessories.includes('Dual Redundant Power Supply');
-    setConfig((p) => (wantsRedundant && p.power !== 'Redundant' ? { ...p, power: 'Redundant' } : p));
-  }, [config.accessories]);
+    const allowedSet = new Set(
+      ACCESSORIES.filter((a) => !a.allowed || a.allowed.includes(config.model)).map((a) => a.name)
+    );
+    const filtered = config.accessories.filter((n) => allowedSet.has(n));
+    if (filtered.length !== config.accessories.length) {
+      setConfig((p) => ({ ...p, accessories: filtered }));
+    }
+  }, [config.model]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // pokud je zvolen PSU → power=Redundant; jinak zpět na default daného modelu
+  useEffect(() => {
+    const psuSelected = config.accessories.includes('Dual Redundant Power Supply');
+    const modelDefaults = MODELS.find((m) => m.id === config.model)!.defaults;
+    const desiredPower = psuSelected ? 'Redundant' : modelDefaults.power;
+    if (config.power !== desiredPower) {
+      setConfig((p) => ({ ...p, power: desiredPower }));
+    }
+  }, [config.accessories, config.model]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shareUrl = useMemo(() => {
     const base = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
@@ -181,12 +209,15 @@ export default function App() {
     [recommendedModel, devBand, accuracy, config]
   );
 
+  /* ---------- UI ---------- */
   return (
     <div className="app" style={{ minHeight: '100vh', fontFamily: 'system-ui, Arial', color: '#111' }}>
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: 24 }}>
-        <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-          <img src="https://www.westercom.eu/img/logo-1634110785.jpg" alt="Westercom" height={36} />
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Konfigurátor časových serverů Elproma NTS</div>
+        <header style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 0.2 }}>Westercom</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: '#444' }}>
+            Konfigurátor časových serverů Elproma NTS
+          </div>
         </header>
         <p style={{ color: '#555', fontSize: 14, marginTop: 0, marginBottom: 8 }}>
           Interaktivní průvodce, který pomůže vybrat správný časový server pro vaši infrastrukturu.
@@ -203,14 +234,7 @@ export default function App() {
             }}
           >
             {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                style={{
-                  height: 8,
-                  borderRadius: 999,
-                  background: i <= step ? '#111' : '#e5e5e5',
-                }}
-              />
+              <div key={i} style={{ height: 8, borderRadius: 999, background: i <= step ? '#111' : '#e5e5e5' }} />
             ))}
           </div>
         )}
@@ -225,6 +249,7 @@ export default function App() {
                 <b>Spustit konfigurátor</b> a nechte se vést.
               </p>
             </div>
+
             <div style={{ padding: 24 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 16 }}>
                 {MODELS.map((m) => (
@@ -238,14 +263,33 @@ export default function App() {
                       boxShadow: '0 6px 24px rgba(0,0,0,.06)',
                     }}
                   >
-                    {m.image && (
-                      <img
-                        src={m.image}
-                        alt={m.name}
-                        loading="lazy"
-                        style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}
-                      />
-                    )}
+                    {/* Obrázek – vycentrovaný, bez ořezu */}
+                    <div
+                      style={{
+                        height: 140,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#f6f7f9',
+                        borderBottom: '1px solid #eee',
+                      }}
+                    >
+                      {m.image && (
+                        <img
+                          src={m.image}
+                          alt={m.name}
+                          loading="lazy"
+                          style={{
+                            maxWidth: '78%',
+                            maxHeight: '80%',
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                            display: 'block',
+                          }}
+                        />
+                      )}
+                    </div>
+
                     <div style={{ padding: '12px 14px' }}>
                       <div style={{ fontWeight: 700 }}>{m.name}</div>
                       <div style={{ color: '#666', fontSize: 12, marginBottom: 6 }}>{m.segment}</div>
@@ -273,6 +317,7 @@ export default function App() {
                 ))}
               </div>
             </div>
+
             <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'center' }}>
               <button
                 onClick={() => setStep(0)}
@@ -379,176 +424,3 @@ export default function App() {
                 </p>
               </div>
             </div>
-            <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'space-between' }}>
-              <button onClick={() => setStep(0)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
-                Zpět
-              </button>
-              <button
-                onClick={() => setStep(2)}
-                style={{ padding: '10px 14px', borderRadius: 10, background: '#111', color: '#fff', border: '1px solid #111' }}
-              >
-                Pokračovat
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* 2) Doplňky */}
-        {step === 2 && (
-          <section style={box}>
-            <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
-              <b>3) Volitelné doplňky</b>
-            </div>
-            <div style={{ padding: 24, display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
-              <div>
-                {ACCESSORIES.map((a) => {
-                  const checked = config.accessories.includes(a.name);
-                  return (
-                    <label
-                      key={a.id}
-                      style={{
-                        display: 'flex',
-                        gap: 12,
-                        alignItems: 'center',
-                        padding: 12,
-                        border: '1px solid #e5e5e5',
-                        borderRadius: 12,
-                        cursor: 'pointer',
-                        marginBottom: 8,
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => {
-                          const set = new Set(config.accessories);
-                          e.target.checked ? set.add(a.name) : set.delete(a.name);
-                          setConfig({ ...config, accessories: Array.from(set) });
-                        }}
-                      />
-                      <span>{a.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              <div style={{ background: '#fafafa', padding: 16, borderRadius: 12, fontSize: 14 }}>
-                <div style={{ fontWeight: 600 }}>Doporučený model</div>
-                <div style={{ fontWeight: 600, marginTop: 6 }}>{recommendedModel.name}</div>
-                <div style={{ fontSize: 12, color: '#666' }}>{recommendedModel.segment}</div>
-                <p style={{ fontSize: 12, color: '#666', marginTop: 8 }}>{recommendedModel.notes}</p>
-              </div>
-            </div>
-            <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'space-between' }}>
-              <button onClick={() => setStep(1)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
-                Zpět
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                style={{ padding: '10px 14px', borderRadius: 10, background: '#111', color: '#fff', border: '1px solid #111' }}
-              >
-                Pokračovat
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* 3) Kontakty & export */}
-        {step === 3 && (
-          <section style={box}>
-            <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
-              <b>4) Kontakty & export</b>
-            </div>
-            <div style={{ padding: 24, display: 'grid', gap: 24, gridTemplateColumns: '1fr 1fr' }}>
-              <div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: '#555' }}>Společnost</label>
-                  <input
-                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
-                    value={config.company}
-                    onChange={(e) => setConfig({ ...config, company: e.target.value })}
-                    placeholder="Název společnosti"
-                  />
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: '#555' }}>Kontakt</label>
-                  <input
-                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
-                    value={config.contact}
-                    onChange={(e) => setConfig({ ...config, contact: e.target.value })}
-                    placeholder="E-mail / telefon"
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, color: '#555' }}>Poznámky</label>
-                  <textarea
-                    rows={4}
-                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
-                    value={config.notes}
-                    onChange={(e) => setConfig({ ...config, notes: e.target.value })}
-                    placeholder="Požadavky, normy, prostředí…"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div style={{ background: '#fafafa', borderRadius: 12, padding: 16, marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Shrnutí</div>
-                  <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, color: '#333' }}>{summary}</pre>
-                </div>
-
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(shareUrl)}
-                    style={{ padding: '10px 14px', borderRadius: 10, background: '#111', color: '#fff', border: '1px solid #111' }}
-                  >
-                    Zkopírovat odkaz
-                  </button>
-                  <button
-                    onClick={() => {
-                      const blob = new Blob([JSON.stringify({ decision: { devBand, accuracy }, ...config }, null, 2)], {
-                        type: 'application/json',
-                      });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `${recommendedModel.id}-konfigurace.json`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                    style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}
-                  >
-                    Stáhnout JSON
-                  </button>
-                </div>
-
-                <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 10, fontSize: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Permalink</div>
-                  <textarea readOnly value={shareUrl} style={{ width: '100%', height: 80 }} />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'space-between' }}>
-              <button onClick={() => setStep(2)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
-                Zpět
-              </button>
-              <button
-                onClick={() => {
-                  setStep(0);
-                  setConfig((c) => ({ ...c, accessories: [], company: '', contact: '', notes: '' }));
-                }}
-                style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}
-              >
-                Nová konfigurace
-              </button>
-            </div>
-          </section>
-        )}
-
-        <div style={{ marginTop: 24, fontSize: 12, color: '#666' }}>
-          © {new Date().getFullYear()} Konfigurátor – rozhodovací průvodce (interní testování).
-        </div>
-      </div>
-    </div>
-  );
-}
