@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 /** NTS CONFIGURÁTOR
- * Flow: (-1) intro → 0) počet zařízení → 1) přesnost → 2) doplňky → 3) kontakty & export
+ * Flow: (-1) úvod → 0) počet zařízení → 1) přesnost → 2) doplňky → 3) kontakty & export
  */
 
 /* ---------- Typy ---------- */
@@ -29,7 +29,7 @@ type ModelRec = {
 type Accessory = {
   id: string;
   name: string;
-  /** pokud je uvedeno, doplněk je povolen jen pro tyto modely */
+  /** volitelné: doplněk je povolen jen pro tyto modely */
   allowed?: ModelId[];
 };
 
@@ -60,7 +60,8 @@ const MODELS: ModelRec[] = [
     image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
     datasheet: 'https://www.elpromaelectronics.com/products/',
     defaults: { oscillator: 'OCXO', gnss: ['GNSS'], lan: 4, sfp: 2, power: 'Redundant', redundantGnss: true },
-    notes: 'Pro stovky až tisíce klientů, SFP, redundance, sub-µs (telekom/utility).',
+    notes:
+      'Pro stovky až tisíce klientů, SFP, redundance, sub-µs (telekom/utility). Duální napájení je součástí (automaticky).',
   },
   {
     id: 'nts-5000',
@@ -69,17 +70,18 @@ const MODELS: ModelRec[] = [
     image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
     datasheet: 'https://www.elpromaelectronics.com/products/',
     defaults: { oscillator: 'Rb', gnss: ['GNSS'], lan: 6, sfp: 2, power: 'Redundant', redundantGnss: true },
-    notes: 'Pro velké/kritické instalace, ePRTC, dlouhý holdover, tisíce klientů.',
+    notes:
+      'Pro velké/kritické instalace, ePRTC, dlouhý holdover, tisíce klientů. Duální napájení je součástí (automaticky).',
   },
 ];
 
 const ACCESSORIES: Accessory[] = [
-  // NOVÉ: náhradní anténa
   { id: 'antenna', name: 'NTS-antenna – náhradní anténa (1 ks je již v balení)' },
   { id: 'irig', name: 'IRIG-B IN/OUT module w/ 1PPS output' },
-  // PSU jen pro NTS-3000:
+  // PSU je jen pro NTS-3000
   { id: 'psu', name: 'Dual Redundant Power Supply', allowed: ['nts-3000'] },
-  { id: 'fo', name: 'FO Comm Set for GNSS Antenna/Receiver' },
+  // přejmenováno
+  { id: 'fo', name: 'Fibre Optic Antenna Set' },
   { id: '5071a', name: '5071A special support (firmware)' },
 ];
 
@@ -150,7 +152,7 @@ export default function App() {
     if (dec) setConfig(dec);
   }, []);
 
-  // doporučení + defaulty při změně rozhodování
+  // doporučení + defaulty při změně rozhodovacích vstupů
   const recommendedId = useMemo(() => recommendModel(devBand, accuracy), [devBand, accuracy]);
   const recommendedModel = useMemo(() => MODELS.find((m) => m.id === recommendedId)!, [recommendedId]);
 
@@ -168,7 +170,7 @@ export default function App() {
     }));
   }, [recommendedId]);
 
-  // při změně modelu odstraň nepovolené doplňky (např. PSU u jiných než NTS-3000)
+  // při změně modelu odstraň nepovolené doplňky (např. PSU mimo NTS-3000)
   useEffect(() => {
     const allowedSet = new Set(
       ACCESSORIES.filter((a) => !a.allowed || a.allowed.includes(config.model)).map((a) => a.name)
@@ -225,21 +227,14 @@ export default function App() {
 
         {/* Progress jen pro kroky 0–3 */}
         {step >= 0 && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4,1fr)',
-              gap: 8,
-              margin: '16px 0 24px',
-            }}
-          >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, margin: '16px 0 24px' }}>
             {[0, 1, 2, 3].map((i) => (
               <div key={i} style={{ height: 8, borderRadius: 999, background: i <= step ? '#111' : '#e5e5e5' }} />
             ))}
           </div>
         )}
 
-        {/* Intro */}
+        {/* Úvod */}
         {step === -1 && (
           <section style={box}>
             <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
@@ -279,13 +274,7 @@ export default function App() {
                           src={m.image}
                           alt={m.name}
                           loading="lazy"
-                          style={{
-                            maxWidth: '78%',
-                            maxHeight: '80%',
-                            objectFit: 'contain',
-                            objectPosition: 'center',
-                            display: 'block',
-                          }}
+                          style={{ maxWidth: '78%', maxHeight: '80%', objectFit: 'contain', objectPosition: 'center', display: 'block' }}
                         />
                       )}
                     </div>
@@ -449,8 +438,7 @@ export default function App() {
                 {ACCESSORIES.map((a) => {
                   const checked = config.accessories.includes(a.name);
                   const disabled = a.allowed && !a.allowed.includes(config.model);
-                  const hint =
-                    a.id === 'psu' && disabled ? 'Pouze pro model NTS-3000' : undefined;
+                  const hint = a.id === 'psu' && disabled ? 'Pouze pro model NTS-3000' : undefined;
 
                   return (
                     <label
