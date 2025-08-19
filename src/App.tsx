@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-/** NTS CONFIGURÁTOR
- * Flow: (-1) úvod → 0) počet zařízení → 1) přesnost → 2) doplňky → 3) kontakty & export
- */
+/** NTS CONFIGURÁTOR – intro → 0) devices → 1) accuracy → 2) accessories → 3) export */
 
-/* ---------- Typy ---------- */
 type ModelId = 'nts-pico3' | 'nts-3000' | 'nts-4000' | 'nts-5000';
 type DevBand = 'small' | 'medium' | 'large' | 'xl';
 type AccuracyId = 'ntp_ms' | 'ptp_ent' | 'ptp_prtc' | 'eprtc';
@@ -13,7 +10,7 @@ type ModelRec = {
   id: ModelId;
   name: string;
   segment: string;
-  image?: string;
+  image?: string;      // cesta do /public/img/*.jpg
   datasheet?: string;
   defaults: {
     oscillator: 'TCXO' | 'OCXO' | 'Rb';
@@ -29,8 +26,7 @@ type ModelRec = {
 type Accessory = {
   id: string;
   name: string;
-  /** volitelné: doplněk je povolen jen pro tyto modely */
-  allowed?: ModelId[];
+  allowed?: ModelId[]; // pokud je uvedeno, doplněk je jen pro tyto modely
 };
 
 /* ---------- Data ---------- */
@@ -39,9 +35,9 @@ const MODELS: ModelRec[] = [
     id: 'nts-pico3',
     name: 'NTS-PICO3',
     segment: 'Kompaktní | NTP/PTP (edge)',
-    image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
-    // Aktuální datasheet (brochure) pro PICO3:
-    datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/04/TimeSystems_NTS-pico3_brochure_070125-fqrtq4.pdf',
+    image: '/img/nts-pico3.jpg',
+    datasheet:
+      'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/04/TimeSystems_NTS-pico3_brochure_070125-fqrtq4.pdf',
     defaults: { oscillator: 'TCXO', gnss: ['GNSS'], lan: 1, sfp: 0, power: 'Single', redundantGnss: false },
     notes: 'Pro malé sítě (desítky klientů), přesnost ms (NTP) / základní PTP.',
   },
@@ -49,8 +45,9 @@ const MODELS: ModelRec[] = [
     id: 'nts-3000',
     name: 'NTS-3000',
     segment: 'PTP Grandmaster | NTP Stratum-1',
-    image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
-    datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_3000_120525-tamqzn.pdf',
+    image: '/img/nts-3000.jpg',
+    datasheet:
+      'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_3000_120525-tamqzn.pdf',
     defaults: { oscillator: 'OCXO', gnss: ['GNSS'], lan: 2, sfp: 0, power: 'Single', redundantGnss: false },
     notes: 'Pro stovky klientů, enterprise PTP (sub-ms až desítky µs).',
   },
@@ -58,8 +55,9 @@ const MODELS: ModelRec[] = [
     id: 'nts-4000',
     name: 'NTS-4000',
     segment: 'PTP/PRTC-A | vyšší kapacita',
-    image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
-    datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_4000_120525-t2ham9.pdf',
+    image: '/img/nts-4000.jpg',
+    datasheet:
+      'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_4000_120525-t2ham9.pdf',
     defaults: { oscillator: 'OCXO', gnss: ['GNSS'], lan: 4, sfp: 2, power: 'Redundant', redundantGnss: true },
     notes:
       'Pro stovky až tisíce klientů, SFP, redundance, sub-µs (telekom/utility). Duální napájení je součástí (automaticky).',
@@ -68,8 +66,9 @@ const MODELS: ModelRec[] = [
     id: 'nts-5000',
     name: 'NTS-5000',
     segment: 'ePRTC / PRTC A/B | rubidium',
-    image: 'https://www.westercom.eu/img/logo-1634110785.jpg',
-    datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_5000_120525-eozbhw.pdf',
+    image: '/img/nts-5000.jpg',
+    datasheet:
+      'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_5000_120525-eozbhw.pdf',
     defaults: { oscillator: 'Rb', gnss: ['GNSS'], lan: 6, sfp: 2, power: 'Redundant', redundantGnss: true },
     notes:
       'Pro velké/kritické instalace, ePRTC, dlouhý holdover, tisíce klientů. Duální napájení je součástí (automaticky).',
@@ -79,10 +78,8 @@ const MODELS: ModelRec[] = [
 const ACCESSORIES: Accessory[] = [
   { id: 'antenna', name: 'NTS-antenna – náhradní anténa (1 ks je již v balení)' },
   { id: 'irig', name: 'IRIG-B IN/OUT module w/ 1PPS output' },
-  // PSU je jen pro NTS-3000
-  { id: 'psu', name: 'Dual Redundant Power Supply', allowed: ['nts-3000'] },
-  // přejmenováno
-  { id: 'fo', name: 'Fibre Optic Antenna Set' },
+  { id: 'psu', name: 'Dual Redundant Power Supply', allowed: ['nts-3000'] }, // PSU jen pro NTS-3000
+  { id: 'fo', name: 'Fibre Optic Antenna Set' },                               // přejmenováno
   { id: '5071a', name: '5071A special support (firmware)' },
 ];
 
@@ -128,7 +125,7 @@ function recommendModel(devBand: DevBand, acc: AccuracyId): ModelId {
 
 /* ---------- App ---------- */
 export default function App() {
-  const [step, setStep] = useState(-1); // -1 = intro
+  const [step, setStep] = useState(-1);
   const [devBand, setDevBand] = useState<DevBand>('medium');
   const [accuracy, setAccuracy] = useState<AccuracyId>('ptp_ent');
   const [config, setConfig] = useState(() => ({
@@ -153,7 +150,7 @@ export default function App() {
     if (dec) setConfig(dec);
   }, []);
 
-  // doporučení + defaulty při změně rozhodovacích vstupů
+  // doporučení + defaulty
   const recommendedId = useMemo(() => recommendModel(devBand, accuracy), [devBand, accuracy]);
   const recommendedModel = useMemo(() => MODELS.find((m) => m.id === recommendedId)!, [recommendedId]);
 
@@ -171,7 +168,7 @@ export default function App() {
     }));
   }, [recommendedId]);
 
-  // při změně modelu odstraň nepovolené doplňky (např. PSU mimo NTS-3000)
+  // pročisti doplňky podle modelu
   useEffect(() => {
     const allowedSet = new Set(
       ACCESSORIES.filter((a) => !a.allowed || a.allowed.includes(config.model)).map((a) => a.name)
@@ -182,14 +179,12 @@ export default function App() {
     }
   }, [config.model]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // pokud je zvolen PSU → power=Redundant; jinak zpět na default daného modelu
+  // PSU -> power Redundant (jinak default modelu)
   useEffect(() => {
     const psuSelected = config.accessories.includes('Dual Redundant Power Supply');
     const modelDefaults = MODELS.find((m) => m.id === config.model)!.defaults;
     const desiredPower = psuSelected ? 'Redundant' : modelDefaults.power;
-    if (config.power !== desiredPower) {
-      setConfig((p) => ({ ...p, power: desiredPower }));
-    }
+    if (config.power !== desiredPower) setConfig((p) => ({ ...p, power: desiredPower }));
   }, [config.accessories, config.model]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shareUrl = useMemo(() => {
@@ -216,12 +211,39 @@ export default function App() {
   return (
     <div className="app" style={{ minHeight: '100vh', fontFamily: 'system-ui, Arial', color: '#111' }}>
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: 24 }}>
-        <header style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
+        {/* HLAVIČKA s modrým „W“ vlevo */}
+        <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <div
+            style={{
+              width: 26,
+              height: 26,
+              overflow: 'hidden',
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#f2f4f7',
+              border: '1px solid #e5e7eb',
+            }}
+            title="Westercom"
+          >
+            <img
+              src="https://www.westercom.eu/img/logo-1634110785.jpg"
+              alt="W"
+              style={{
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'left center', // ořezne logo tak, aby byl vidět hlavně modrý symbol
+                display: 'block',
+              }}
+            />
+          </div>
           <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 0.2 }}>Westercom</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: '#444' }}>
             Konfigurátor časových serverů Elproma NTS
           </div>
         </header>
+
         <p style={{ color: '#555', fontSize: 14, marginTop: 0, marginBottom: 8 }}>
           Interaktivní průvodce, který pomůže vybrat správný časový server pro vaši infrastrukturu.
         </p>
@@ -235,7 +257,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Úvod */}
+        {/* ÚVOD */}
         {step === -1 && (
           <section style={box}>
             <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
@@ -259,10 +281,11 @@ export default function App() {
                       boxShadow: '0 6px 24px rgba(0,0,0,.06)',
                     }}
                   >
-                    {/* Obrázek – vycentrovaný, bez ořezu */}
+                    {/* Obrázek – vycentrovaný, s fallbackem */}
                     <div
                       style={{
                         height: 140,
+                        position: 'relative',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -275,9 +298,35 @@ export default function App() {
                           src={m.image}
                           alt={m.name}
                           loading="lazy"
-                          style={{ maxWidth: '78%', maxHeight: '80%', objectFit: 'contain', objectPosition: 'center', display: 'block' }}
+                          onError={(e) => {
+                            // schovej neplatný obrázek, nech fallback
+                            (e.currentTarget.style as any).display = 'none';
+                          }}
+                          style={{
+                            maxWidth: '92%',
+                            maxHeight: '90%',
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                            display: 'block',
+                          }}
                         />
                       )}
+                      {/* Fallback – zobrazen, když se obrázek nenačte */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 12,
+                          color: '#6b7280',
+                          fontWeight: 700,
+                          fontSize: 14,
+                        }}
+                      >
+                        {m.name}
+                      </div>
                     </div>
 
                     <div style={{ padding: '12px 14px' }}>
@@ -319,7 +368,7 @@ export default function App() {
           </section>
         )}
 
-        {/* 0) Počet zařízení */}
+        {/* 0) Zařízení */}
         {step === 0 && (
           <section style={box}>
             <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
@@ -496,7 +545,7 @@ export default function App() {
           </section>
         )}
 
-        {/* 3) Kontakty & export */}
+        {/* 3) Export */}
         {step === 3 && (
           <section style={box}>
             <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
