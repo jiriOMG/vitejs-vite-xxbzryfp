@@ -138,6 +138,8 @@ export default function App() {
     redundantGnss: false,
     ptpProfile: 'Default',
     accessories: [] as string[],
+    // nový parametr – pouze pro NTS-5000; výchozí dáme 2
+    ptpPorts: 2 as number | undefined,
     company: '',
     contact: '',
     notes: '',
@@ -165,6 +167,8 @@ export default function App() {
       sfp: m.defaults.sfp,
       power: m.defaults.power,
       redundantGnss: m.defaults.redundantGnss,
+      // když přecházíme z/na NTS-5000, rozumný default pro ptpPorts
+      ptpPorts: m.id === 'nts-5000' ? prev.ptpPorts ?? 2 : undefined,
     }));
   }, [recommendedId]);
 
@@ -201,9 +205,12 @@ export default function App() {
         `Holdover: ${config.oscillator}`,
         `Síť: ${config.lan}× LAN, ${config.sfp}× SFP`,
         `Napájení: ${config.power}${config.redundantGnss ? ', redundantní GNSS' : ''}`,
+        config.ptpPorts ? `PTP porty: ${config.ptpPorts}` : undefined,
         `PTP profil: ${config.ptpProfile}`,
         `Doplňky: ${config.accessories.length ? config.accessories.join(', ') : '—'}`,
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
     [recommendedModel, devBand, accuracy, config]
   );
 
@@ -233,7 +240,7 @@ export default function App() {
               style={{
                 height: '100%',
                 objectFit: 'cover',
-                objectPosition: 'left center', // ořezne logo tak, aby byl vidět hlavně modrý symbol
+                objectPosition: 'left center',
                 display: 'block',
               }}
             />
@@ -299,7 +306,6 @@ export default function App() {
                           alt={m.name}
                           loading="lazy"
                           onError={(e) => {
-                            // schovej neplatný obrázek, nech fallback
                             (e.currentTarget.style as any).display = 'none';
                           }}
                           style={{
@@ -488,12 +494,25 @@ export default function App() {
                 {ACCESSORIES.map((a) => {
                   const checked = config.accessories.includes(a.name);
                   const disabled = a.allowed && !a.allowed.includes(config.model);
-                  const hint = a.id === 'psu' && disabled ? 'Pouze pro model NTS-3000' : undefined;
+
+                  // vytvoříme kontextovou hlášku a text pro PSU podle modelu
+                  let labelText = a.name;
+                  let titleHint: string | undefined = undefined;
+
+                  if (a.id === 'psu' && disabled) {
+                    if (config.model === 'nts-5000') {
+                      labelText = 'Dual Redundant Power Supply automaticky součástí';
+                      titleHint = 'U NTS-5000 je duální napájení součástí dodávky.';
+                    } else {
+                      titleHint = 'Pouze pro model NTS-3000';
+                      labelText = `${a.name} (jen NTS-3000)`;
+                    }
+                  }
 
                   return (
                     <label
                       key={a.id}
-                      title={hint}
+                      title={titleHint}
                       style={{
                         display: 'flex',
                         gap: 12,
@@ -518,10 +537,38 @@ export default function App() {
                           setConfig({ ...config, accessories: Array.from(set) });
                         }}
                       />
-                      <span>{a.name}{hint ? ' (jen NTS-3000)' : ''}</span>
+                      <span>{labelText}</span>
                     </label>
                   );
                 })}
+
+                {/* Speciální volba pro NTS-5000 – počet PTP portů (1–4) */}
+                {config.model === 'nts-5000' && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      padding: 12,
+                      border: '1px solid #e5e5e5',
+                      borderRadius: 12,
+                      background: '#fff',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Počet PTP portů</div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      {[1, 2, 3, 4].map((n) => (
+                        <label key={n} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name="ptpPorts"
+                            checked={config.ptpPorts === n}
+                            onChange={() => setConfig({ ...config, ptpPorts: n })}
+                          />
+                          <span>{n}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ background: '#fafafa', padding: 16, borderRadius: 12, fontSize: 14 }}>
