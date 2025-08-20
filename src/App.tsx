@@ -10,7 +10,7 @@ type ModelRec = {
   id: ModelId;
   name: string;
   segment: string;
-  image?: string;      // cesta do /public/img/*.jpg
+  image?: string;      // cesta do /public/img/*.jpg nebo plná URL
   datasheet?: string;
   defaults: {
     oscillator: 'TCXO' | 'OCXO' | 'Rb';
@@ -28,6 +28,53 @@ type Accessory = {
   name: string;
   allowed?: ModelId[]; // pokud je uvedeno, doplněk je jen pro tyto modely
 };
+
+/* ---------- Malá komponenta pro obrázek s fallbackem ---------- */
+function CardImage({ src, alt, label }: { src?: string; alt: string; label: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div
+      style={{
+        height: 140,
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f6f7f9',
+        borderBottom: '1px solid #eee',
+      }}
+    >
+      {!!src && !failed && (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          onError={() => setFailed(true)}
+          style={{
+            maxWidth: '92%',
+            maxHeight: '90%',
+            objectFit: 'contain',
+            objectPosition: 'center',
+            display: 'block',
+          }}
+        />
+      )}
+      {(!src || failed) && (
+        <div
+          style={{
+            padding: 12,
+            color: '#6b7280',
+            fontWeight: 700,
+            fontSize: 14,
+            textAlign: 'center',
+          }}
+        >
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ---------- Data ---------- */
 const MODELS: ModelRec[] = [
@@ -79,7 +126,7 @@ const ACCESSORIES: Accessory[] = [
   { id: 'antenna', name: 'NTS-antenna – náhradní anténa (1 ks je již v balení)' },
   { id: 'irig', name: 'IRIG-B IN/OUT module w/ 1PPS output' },
   { id: 'psu', name: 'Dual Redundant Power Supply', allowed: ['nts-3000'] }, // PSU jen pro NTS-3000
-  { id: 'fo', name: 'Fibre Optic Antenna Set' },                               // přejmenováno
+  { id: 'fo', name: 'Fibre Optic Antenna Set' },
   { id: '5071a', name: '5071A special support (firmware)' },
 ];
 
@@ -138,8 +185,7 @@ export default function App() {
     redundantGnss: false,
     ptpProfile: 'Default',
     accessories: [] as string[],
-    // nový parametr – pouze pro NTS-5000; výchozí dáme 2
-    ptpPorts: 2 as number | undefined,
+    ptpPorts: 2 as number | undefined, // jen pro NTS-5000
     company: '',
     contact: '',
     notes: '',
@@ -167,7 +213,6 @@ export default function App() {
       sfp: m.defaults.sfp,
       power: m.defaults.power,
       redundantGnss: m.defaults.redundantGnss,
-      // když přecházíme z/na NTS-5000, rozumný default pro ptpPorts
       ptpPorts: m.id === 'nts-5000' ? prev.ptpPorts ?? 2 : undefined,
     }));
   }, [recommendedId]);
@@ -214,12 +259,22 @@ export default function App() {
     [recommendedModel, devBand, accuracy, config]
   );
 
+  // Handler pro klik na logo – návrat na titulní obrazovku
+  const goHome = () => setStep(-1);
+
   /* ---------- UI ---------- */
   return (
     <div className="app" style={{ minHeight: '100vh', fontFamily: 'system-ui, Arial', color: '#111' }}>
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: 24 }}>
-        {/* HLAVIČKA s modrým „W“ vlevo */}
-        <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        {/* HLAVIČKA – celá je klikací, návrat na titul */}
+        <div
+          onClick={goHome}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && goHome()}
+          title="Zpět na titulní stránku"
+          style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, cursor: 'pointer' }}
+        >
           <div
             style={{
               width: 26,
@@ -231,25 +286,20 @@ export default function App() {
               justifyContent: 'center',
               background: '#f2f4f7',
               border: '1px solid #e5e7eb',
+              flex: '0 0 auto',
             }}
-            title="Westercom"
           >
             <img
               src="https://www.westercom.eu/img/logo-1634110785.jpg"
               alt="W"
-              style={{
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'left center',
-                display: 'block',
-              }}
+              style={{ height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block' }}
             />
           </div>
           <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 0.2 }}>Westercom</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: '#444' }}>
             Konfigurátor časových serverů Elproma NTS
           </div>
-        </header>
+        </div>
 
         <p style={{ color: '#555', fontSize: 14, marginTop: 0, marginBottom: 8 }}>
           Interaktivní průvodce, který pomůže vybrat správný časový server pro vaši infrastrukturu.
@@ -288,52 +338,7 @@ export default function App() {
                       boxShadow: '0 6px 24px rgba(0,0,0,.06)',
                     }}
                   >
-                    {/* Obrázek – vycentrovaný, s fallbackem */}
-                    <div
-                      style={{
-                        height: 140,
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: '#f6f7f9',
-                        borderBottom: '1px solid #eee',
-                      }}
-                    >
-                      {m.image && (
-                        <img
-                          src={m.image}
-                          alt={m.name}
-                          loading="lazy"
-                          onError={(e) => {
-                            (e.currentTarget.style as any).display = 'none';
-                          }}
-                          style={{
-                            maxWidth: '92%',
-                            maxHeight: '90%',
-                            objectFit: 'contain',
-                            objectPosition: 'center',
-                            display: 'block',
-                          }}
-                        />
-                      )}
-                      {/* Fallback – zobrazen, když se obrázek nenačte */}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 12,
-                          color: '#6b7280',
-                          fontWeight: 700,
-                          fontSize: 14,
-                        }}
-                      >
-                        {m.name}
-                      </div>
-                    </div>
+                    <CardImage src={m.image} alt={m.name} label={m.name} />
 
                     <div style={{ padding: '12px 14px' }}>
                       <div style={{ fontWeight: 700 }}>{m.name}</div>
@@ -495,7 +500,6 @@ export default function App() {
                   const checked = config.accessories.includes(a.name);
                   const disabled = a.allowed && !a.allowed.includes(config.model);
 
-                  // vytvoříme kontextovou hlášku a text pro PSU podle modelu
                   let labelText = a.name;
                   let titleHint: string | undefined = undefined;
 
@@ -532,163 +536,3 @@ export default function App() {
                         checked={checked}
                         onChange={(e) => {
                           if (disabled) return;
-                          const set = new Set(config.accessories);
-                          e.target.checked ? set.add(a.name) : set.delete(a.name);
-                          setConfig({ ...config, accessories: Array.from(set) });
-                        }}
-                      />
-                      <span>{labelText}</span>
-                    </label>
-                  );
-                })}
-
-                {/* Speciální volba pro NTS-5000 – počet PTP portů (1–4) */}
-                {config.model === 'nts-5000' && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      padding: 12,
-                      border: '1px solid #e5e5e5',
-                      borderRadius: 12,
-                      background: '#fff',
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Počet PTP portů</div>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      {[1, 2, 3, 4].map((n) => (
-                        <label key={n} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                          <input
-                            type="radio"
-                            name="ptpPorts"
-                            checked={config.ptpPorts === n}
-                            onChange={() => setConfig({ ...config, ptpPorts: n })}
-                          />
-                          <span>{n}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ background: '#fafafa', padding: 16, borderRadius: 12, fontSize: 14 }}>
-                <div style={{ fontWeight: 600 }}>Doporučený model</div>
-                <div style={{ fontWeight: 600, marginTop: 6 }}>{recommendedModel.name}</div>
-                <div style={{ fontSize: 12, color: '#666' }}>{recommendedModel.segment}</div>
-                <p style={{ fontSize: 12, color: '#666', marginTop: 8 }}>{recommendedModel.notes}</p>
-              </div>
-            </div>
-            <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'space-between' }}>
-              <button onClick={() => setStep(1)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
-                Zpět
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                style={{ padding: '10px 14px', borderRadius: 10, background: '#111', color: '#fff', border: '1px solid #111' }}
-              >
-                Pokračovat
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* 3) Export */}
-        {step === 3 && (
-          <section style={box}>
-            <div style={{ padding: 24, borderBottom: '1px solid #eee' }}>
-              <b>4) Kontakty & export</b>
-            </div>
-            <div style={{ padding: 24, display: 'grid', gap: 24, gridTemplateColumns: '1fr 1fr' }}>
-              <div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: '#555' }}>Společnost</label>
-                  <input
-                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
-                    value={config.company}
-                    onChange={(e) => setConfig({ ...config, company: e.target.value })}
-                    placeholder="Název společnosti"
-                  />
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: '#555' }}>Kontakt</label>
-                  <input
-                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
-                    value={config.contact}
-                    onChange={(e) => setConfig({ ...config, contact: e.target.value })}
-                    placeholder="E-mail / telefon"
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, color: '#555' }}>Poznámky</label>
-                  <textarea
-                    rows={4}
-                    style={{ marginTop: 6, width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '8px 10px' }}
-                    value={config.notes}
-                    onChange={(e) => setConfig({ ...config, notes: e.target.value })}
-                    placeholder="Požadavky, normy, prostředí…"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div style={{ background: '#fafafa', borderRadius: 12, padding: 16, marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Shrnutí</div>
-                  <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, color: '#333' }}>{summary}</pre>
-                </div>
-
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(shareUrl)}
-                    style={{ padding: '10px 14px', borderRadius: 10, background: '#111', color: '#fff', border: '1px solid #111' }}
-                  >
-                    Zkopírovat odkaz
-                  </button>
-                  <button
-                    onClick={() => {
-                      const blob = new Blob([JSON.stringify({ decision: { devBand, accuracy }, ...config }, null, 2)], {
-                        type: 'application/json',
-                      });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `${recommendedModel.id}-konfigurace.json`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                    style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}
-                  >
-                    Stáhnout JSON
-                  </button>
-                </div>
-
-                <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 10, fontSize: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>Permalink</div>
-                  <textarea readOnly value={shareUrl} style={{ width: '100%', height: 80 }} />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ padding: '0 24px 24px', display: 'flex', justifyContent: 'space-between' }}>
-              <button onClick={() => setStep(2)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
-                Zpět
-              </button>
-              <button
-                onClick={() => {
-                  setStep(0);
-                  setConfig((c) => ({ ...c, accessories: [], company: '', contact: '', notes: '' }));
-                }}
-                style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}
-              >
-                Nová konfigurace
-              </button>
-            </div>
-          </section>
-        )}
-
-        <div style={{ marginTop: 24, fontSize: 12, color: '#666' }}>
-          © {new Date().getFullYear()} Konfigurátor – rozhodovací průvodce (interní testování).
-        </div>
-      </div>
-    </div>
-  );
-}
