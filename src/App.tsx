@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from "react";
  */
 
 /* ─────────────────────────────────────────────────────────
- * Typy
+ * Types
  * ───────────────────────────────────────────────────────── */
 type Lang = "cs" | "en" | "pl";
 type ModelId = "nts-pico3" | "nts-3000" | "nts-4000" | "nts-5000";
@@ -30,7 +30,7 @@ type Model = {
 };
 
 /* ─────────────────────────────────────────────────────────
- * Překlady
+ * I18N
  * ───────────────────────────────────────────────────────── */
 const i18n: Record<
   Lang,
@@ -72,11 +72,7 @@ const i18n: Record<
       psu3000: { label: string; desc: string };
       psuAutoInfo: { label: string; desc: string };
     };
-    // Popisky u modelů (segment/notes odstavec se doplní ještě per model)
-    modelExtras: {
-      redPsuAuto: string; // věta k 4000/5000 (součástí)
-      redPsuOptional: string; // věta k 3000 (volitelně)
-    };
+    modelExtras: { redPsuAuto: string; redPsuOptional: string };
   }
 > = {
   cs: {
@@ -87,8 +83,7 @@ const i18n: Record<
       overviewTitle: "Přehled časových serverů",
       overviewLeadA:
         "Seznam modelů s popisem a odkazem na datasheet.",
-      overviewLeadB:
-        "Nejste si jisti? Klikněte na ",
+      overviewLeadB: "Nejste si jisti? Klikněte na ",
       datasheet: "Datasheet",
       launch: "Spustit konfigurátor",
       back: "Zpět",
@@ -309,7 +304,7 @@ const i18n: Record<
 };
 
 /* ─────────────────────────────────────────────────────────
- * Modely
+ * Models
  * ───────────────────────────────────────────────────────── */
 const MODELS: Model[] = [
   {
@@ -317,28 +312,16 @@ const MODELS: Model[] = [
     name: "NTS-PICO3",
     segment: "Kompaktní | NTP/PTP (edge)",
     image: "/img/nts-pico3.jpg",
-    defaults: {
-      oscillator: "TCXO",
-      lan: 1,
-      sfp: 0,
-      power: "Single",
-      redundantGnss: false,
-    },
+    defaults: { oscillator: "TCXO", lan: 1, sfp: 0, power: "Single", redundantGnss: false },
     notes: "Pro malé sítě (desítky klientů), přesnost ms (NTP) / základní PTP.",
-    datasheet: { href: "#", title: "NTS-PICO3" }, // požadavek: textové „NTS-PICO3“
+    datasheet: { href: "#", title: "NTS-PICO3" }, // per your requirement
   },
   {
     id: "nts-3000",
     name: "NTS-3000",
     segment: "PTP Grandmaster | NTP Stratum-1",
     image: "/img/nts-3000.jpg",
-    defaults: {
-      oscillator: "OCXO",
-      lan: 2,
-      sfp: 0,
-      power: "Single",
-      redundantGnss: false,
-    },
+    defaults: { oscillator: "OCXO", lan: 2, sfp: 0, power: "Single", redundantGnss: false },
     notes: "Pro stovky klientů, enterprise PTP (sub-ms až desítky µs).",
     datasheet: {
       href: "https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_3000_120525-tamqzn.pdf",
@@ -349,15 +332,8 @@ const MODELS: Model[] = [
     name: "NTS-4000",
     segment: "PTP/PRTC-A | vyšší kapacita",
     image: "/img/nts-4000.jpg",
-    defaults: {
-      oscillator: "OCXO",
-      lan: 4,
-      sfp: 2,
-      power: "Redundant",
-      redundantGnss: true,
-    },
-    notes:
-      "Pro stovky až tisíce klientů, SFP, redundance, sub-µs (telekom/utility).",
+    defaults: { oscillator: "OCXO", lan: 4, sfp: 2, power: "Redundant", redundantGnss: true },
+    notes: "Pro stovky až tisíce klientů, SFP, redundance, sub-µs (telekom/utility).",
     datasheet: {
       href: "https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_4000_120525-t2ham9.pdf",
     },
@@ -367,15 +343,8 @@ const MODELS: Model[] = [
     name: "NTS-5000",
     segment: "ePRTC / PRTC A/B | rubidium",
     image: "/img/nts-5000.jpg",
-    defaults: {
-      oscillator: "Rb",
-      lan: 6,
-      sfp: 2,
-      power: "Redundant",
-      redundantGnss: true,
-    },
-    notes:
-      "Pro velké/kritické instalace, ePRTC, dlouhý holdover, tisíce klientů.",
+    defaults: { oscillator: "Rb", lan: 6, sfp: 2, power: "Redundant", redundantGnss: true },
+    notes: "Pro velké/kritické instalace, ePRTC, dlouhý holdover, tisíce klientů.",
     datasheet: {
       href: "https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_5000_120525-eozbhw.pdf",
     },
@@ -383,7 +352,7 @@ const MODELS: Model[] = [
 ];
 
 /* ─────────────────────────────────────────────────────────
- * Pomocníci
+ * Helpers
  * ───────────────────────────────────────────────────────── */
 const encodeConfig = (cfg: unknown) => {
   const json = JSON.stringify(cfg);
@@ -410,13 +379,13 @@ function recommendModel(devBand: DevBand, acc: AccuracyId): ModelId {
 }
 
 /* ─────────────────────────────────────────────────────────
- * Aplikace
+ * App
  * ───────────────────────────────────────────────────────── */
 export default function App() {
   const [lang, setLang] = useState<Lang>("cs");
   const t = i18n[lang];
 
-  // step: -1 = intro; 0..3 průvodce
+  // step: -1 = intro; 0..3 wizard
   const [step, setStep] = useState<number>(-1);
   const [devBand, setDevBand] = useState<DevBand>("medium");
   const [accuracy, setAccuracy] = useState<AccuracyId>("ptp_ent");
@@ -428,14 +397,14 @@ export default function App() {
     power: "Single" as "Single" | "Redundant",
     redundantGnss: false,
     ptpProfile: "Default",
-    accessories: [] as string[], // budou jazykové labely, ne ID – pro účely exportu stačí
+    accessories: [] as string[],
     company: "",
     contact: "",
     notes: "",
-    ptpPorts: 2 as 1 | 2 | 3 | 4, // pouze pro NTS-5000
+    ptpPorts: 2 as 1 | 2 | 3 | 4, // NTS-5000 only
   }));
 
-  // načtení z URL (zachování jazyka v UI, ale konfig je z URL)
+  // read from URL
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const c = sp.get("c");
@@ -446,7 +415,7 @@ export default function App() {
     }
   }, []);
 
-  // doporučení modelu podle voleb
+  // recommended model
   const recommendedId = useMemo(
     () => recommendModel(devBand, accuracy),
     [devBand, accuracy]
@@ -456,7 +425,7 @@ export default function App() {
     [recommendedId]
   );
 
-  // přepis defaultů po změně doporučení
+  // set defaults on recommendation change
   useEffect(() => {
     const m = MODELS.find((m) => m.id === recommendedId);
     if (!m) return;
@@ -471,15 +440,16 @@ export default function App() {
     }));
   }, [recommendedId]);
 
-  // PSU pravidlo – nenabízet psu3000 mimo NTS-3000
+  // PSU rule – strip psu3000 when model ≠ NTS-3000
   useEffect(() => {
     if (config.model !== "nts-3000") {
       setConfig((prev) => ({
         ...prev,
         accessories: prev.accessories.filter(
-          (a) => a !== i18n.cs.accessories.psu3000.label &&
-                 a !== i18n.en.accessories.psu3000.label &&
-                 a !== i18n.pl.accessories.psu3000.label
+          (a) =>
+            a !== i18n.cs.accessories.psu3000.label &&
+            a !== i18n.en.accessories.psu3000.label &&
+            a !== i18n.pl.accessories.psu3000.label
         ),
       }));
     }
@@ -497,10 +467,8 @@ export default function App() {
   }, [config, devBand, accuracy]);
 
   const summary = useMemo(() => {
-    const accLabel =
-      t.accuracy.find((a) => a.id === accuracy)?.label || "";
-    const bandLabel =
-      t.bands.find((b) => b.id === devBand)?.label || "";
+    const accLabel = t.accuracy.find((a) => a.id === accuracy)?.label || "";
+    const bandLabel = t.bands.find((b) => b.id === devBand)?.label || "";
     const lines = [
       `Model: ${recommendedModel.name} (${recommendedModel.segment})`,
       `${t.ui.step1.replace("1) ", "")}: ${bandLabel}`,
@@ -519,8 +487,9 @@ export default function App() {
     return lines.join("\n");
   }, [t, recommendedModel, devBand, accuracy, config]);
 
-  /* ────────── Vizuální obálky ────────── */
-  const Section: React.FC<{ title?: string }> = ({ title, children }) => (
+  /* ────────── layout helpers (with explicit children) ────────── */
+  type SectionProps = { title?: string; children?: React.ReactNode };
+  const Section = ({ title, children }: SectionProps) => (
     <section
       style={{
         border: "1px solid #e6e6e6",
@@ -539,7 +508,7 @@ export default function App() {
     </section>
   );
 
-  const Header: React.FC = () => (
+  const Header = () => (
     <div
       style={{
         display: "flex",
@@ -589,7 +558,6 @@ export default function App() {
     </div>
   );
 
-  /* ────────── Styl vložený do stránky ────────── */
   const CommonCSS = () => (
     <style>{`
       .cards{ display:grid; grid-template-columns:1fr; gap:16px; }
@@ -698,8 +666,7 @@ export default function App() {
                 style={{
                   height: 8,
                   borderRadius: 999,
-                  background:
-                    i <= step ? "linear-gradient(90deg,#111,#333)" : "#e5e5e5",
+                  background: i <= step ? "linear-gradient(90deg,#111,#333)" : "#e5e5e5",
                 }}
               />
             ))}
@@ -793,7 +760,6 @@ export default function App() {
         {step === 2 && (
           <Section title={t.ui.step3}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
-              {/* Volby – PSU jen pro NTS-3000 */}
               <div>
                 {[
                   t.accessories.antenna.label,
@@ -840,7 +806,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Doporučený model */}
               <div className="note">
                 <div style={{ fontWeight: 700 }}>{recommendedModel.name}</div>
                 <div className="muted">{recommendedModel.segment}</div>
@@ -853,7 +818,6 @@ export default function App() {
                 </p>
               </div>
 
-              {/* NTS-5000: PTP porty */}
               {config.model === "nts-5000" && (
                 <div style={{ borderTop: "1px solid #eee", paddingTop: 10 }}>
                   <div style={{ fontWeight: 600, marginBottom: 8 }}>
