@@ -374,7 +374,6 @@ export default function App() {
   }, [config, devBand, accuracy]);
 
   // model k renderu
-  const m = MODELS[lang][reco];
 
   /* ================= Header ================= */
   const Header = () => (
