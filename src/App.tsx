@@ -363,20 +363,21 @@ function recommendModel(dev: DevBand, acc: AccuracyId): ModelId {
   return 'nts-4000';
 }
 
-/* ------------ bezpečné btoa/atob ------------ */
+/* ---------- bezpečné btoa/atob (bez Buffer) ---------- */
 function enc(obj: unknown): string {
   const json = JSON.stringify(obj);
-  return typeof window !== 'undefined'
-    ? window.btoa(unescape(encodeURIComponent(json)))
-    : Buffer.from(json, 'utf8').toString('base64'); // Node fallback – v prohlížeči se nepoužije
+  // TS-safe přístup na btoa/atob (v prohlížeči jsou vždy k dispozici)
+  return (globalThis as any).btoa(
+    unescape(encodeURIComponent(json))
+  );
 }
+
 function dec<T>(s: string | null): T | null {
   if (!s) return null;
   try {
-    const str =
-      typeof window !== 'undefined'
-        ? decodeURIComponent(escape(window.atob(s)))
-        : Buffer.from(s, 'base64').toString('utf8');
+    const str = decodeURIComponent(
+      escape((globalThis as any).atob(s))
+    );
     return JSON.parse(str) as T;
   } catch {
     return null;
