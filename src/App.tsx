@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import './src/App.css';
+import 'src/App.css';
 
 /* =========================================================
    Typy & data
