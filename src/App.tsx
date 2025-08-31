@@ -1,52 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
-import './assets/App.css';
+import './App.css';
 
 /* =========================================================
-   Typy & data
-   ======================================================= */
+   Typy & i18n
+========================================================= */
 
 type Lang = 'cs' | 'en' | 'pl';
 type Screen = 'landing' | 'wizard';
+
 type DevBand = 'small' | 'medium' | 'large' | 'xl';
-type AccuracyId = 'ntp' | 'ptp_ent' | 'ptp_prtc' | 'eprtc';
+type AccuracyId = 'ntp_ms' | 'ptp_ent' | 'ptp_prtc' | 'eprtc';
 type ModelId = 'nts-pico3' | 'nts-3000' | 'nts-4000' | 'nts-5000';
 
-type AccessoryId =
-  | 'antenna'
-  | 'irig'
-  | 'fo'
-  | '5071a'
-  | 'dual_psu'
-  | 'dual_psu_auto';
-
-type ModelInfo = {
-  id: ModelId;
-  name: string;
-  header: string;
-  img: string;
-  datasheet?: string;
-  summary: Record<Lang, string>;
+type AccessoryId = 'antenna' | 'irig' | 'fo' | '5071a' | 'dual_psu_auto' | 'dual_psu_3000';
+type Accessory = {
+  id: AccessoryId;
+  label: Record<Lang, string>;
+  hint?: Record<Lang, string>;
+  disabledFor?: ModelId[];       // kde se nemá ukazovat
+  forceFor?: ModelId[];          // kde je automaticky součástí (jen zobrazit popisek)
+  onlyFor?: ModelId[];           // kde je jedině možné (dual PSU jen pro 3000)
 };
 
-type I18N = {
-  brand: string;
-  subtitle: string;
-  overview: string;
-  unsure: string;
-  start: string;
+type ModelCard = {
+  id: ModelId;
+  name: string;
+  subtitle: Record<Lang, string>;
+  img: string;
   datasheet: string;
-  back: string;
-  next: string;
-  newConfig: string;
-  steps: string[];
-  deviceBands: { id: DevBand; label: string }[];
-  accuracy: { id: AccuracyId; label: string; hint: string }[];
-  accessoriesTitle: string;
-  accessories: Record<AccessoryId, { name: string; help: string }>;
-  modelAutoDual: string; // věta, že dual PSU je součástí
-  modelOptionalDual: string; // věta, že dual PSU je volitelný
-  ptpPortsLabel: string;
-  ptpPortsHint: string;
+  blurb: Record<Lang, string>;
+  dualPsuAuto: boolean; // 4000, 5000
 };
 
 type Config = {
@@ -54,782 +37,792 @@ type Config = {
   devBand: DevBand;
   accuracy: AccuracyId;
   accessories: AccessoryId[];
-  // pouze pro NTS-5000 – počet PTP portů (1–4)
-  ptpPorts?: number;
+  ptpPorts5000: 1 | 2 | 3 | 4; // pro NTS-5000
+  company: string;
+  contact: string;
+  notes: string;
+  ptpProfile: string;
 };
 
-/* ------------ i18n ------------ */
+/* =========================================================
+   Data
+========================================================= */
 
-const I18N: Record<Lang, I18N> = {
+const i18n: Record<
+  Lang,
+  {
+    brandTitle: string;
+    language: string;
+    overview: string;
+    unsure: string;
+    startConfigurator: string;
+    datasheet: string;
+    // steps
+    stepDevices: string;
+    stepAccuracy: string;
+    stepAccessories: string;
+    stepExport: string;
+    continue: string;
+    back: string;
+    newConfig: string;
+    guideBox1: string;
+    guideBox2: string;
+    // devices
+    bands: { id: DevBand; label: string }[];
+    accuracies: { id: AccuracyId; label: string; help: string }[];
+    // accessories section texts
+    recommended: string;
+    // export
+    company: string;
+    contact: string;
+    notes: string;
+    copyLink: string;
+    downloadJson: string;
+    permalink: string;
+    // labels
+    ptpPorts: string;
+    autoIncluded: string;
+  }
+> = {
   cs: {
-    brand: 'Westercom',
-    subtitle:
-      'Interaktivní průvodce, který pomůže vybrat správný časový server pro vaši infrastrukturu.',
+    brandTitle: 'Elproma NTS konfigurátor časových serverů',
+    language: 'Jazyk',
     overview: 'Přehled časových serverů',
     unsure: 'Nejste si jisti?',
-    start: 'Spustit konfigurátor',
+    startConfigurator: 'Spustit konfigurátor',
     datasheet: 'Datasheet',
+    stepDevices: '1) Kolik zařízení potřebujete?',
+    stepAccuracy: '2) Požadovaná přesnost',
+    stepAccessories: '3) Volitelné doplňky',
+    stepExport: '4) Kontakty & export',
+    continue: 'Pokračovat',
     back: 'Zpět',
-    next: 'Pokračovat',
     newConfig: 'Nová konfigurace',
-    steps: ['Zařízení', 'Přesnost', 'Doplňky', 'Export'],
-    deviceBands: [
+    guideBox1: 'Desítky klientů → NTP / základní PTP (PICO3 / NTS-3000).',
+    guideBox2:
+      'Stovky až tisíce → výkonnější GM, SFP, redundance (NTS-4000/5000).',
+    bands: [
       { id: 'small', label: 'do ~50 zařízení' },
       { id: 'medium', label: '~50–200 zařízení' },
       { id: 'large', label: '~200–1000 zařízení' },
       { id: 'xl', label: '>1000 zařízení' },
     ],
-    accuracy: [
-      { id: 'ntp', label: 'NTP – milisekundy', hint: 'běžná IT síť, logy, CCTV' },
-      {
-        id: 'ptp_ent',
-        label: 'PTP Enterprise – sub-ms až desítky µs',
-        hint: 'datacentra, průmysl, trading edge',
-      },
-      {
-        id: 'ptp_prtc',
-        label: 'PTP Telecom/PRTC-A – sub-µs',
-        hint: 'telekom/utility, HW timestamping',
-      },
-      {
-        id: 'eprtc',
-        label: 'ePRTC / dlouhý holdover',
-        hint: 'kritická infrastruktura, rubidium',
-      },
+    accuracies: [
+      { id: 'ntp_ms', label: 'NTP – milisekundy', help: 'běžná IT síť, logy, servery, CCTV' },
+      { id: 'ptp_ent', label: 'PTP Enterprise – sub-ms až desítky µs', help: 'datacentra, průmysl, trading edge' },
+      { id: 'ptp_prtc', label: 'PTP Telecom/PRTC-A – sub-µs', help: 'telekom/utility, synchronizace sítí' },
+      { id: 'eprtc', label: 'ePRTC / dlouhý holdover', help: 'kritická infrastruktura, rubidium' },
     ],
-    accessoriesTitle: 'Volitelné doplňky',
-    accessories: {
-      antenna: {
-        name: 'NTS-antenna – náhradní anténa',
-        help: '1 ks je již v balení. Náhradní anténa pro GNSS přijímač.',
-      },
-      irig: {
-        name: 'IRIG-B IN/OUT module w/ 1PPS output',
-        help: 'Rozhraní IRIG-B pro vstup/výstup, včetně 1PPS signálu.',
-      },
-      fo: {
-        name: 'Fibre Optic Antenna Set',
-        help: 'Optická souprava pro připojení GNSS antény na delší vzdálenost.',
-      },
-      '5071a': {
-        name: '5071A special support (firmware)',
-        help: 'Firmwarová podpora pro 5071A cesiové etalony.',
-      },
-      dual_psu: {
-        name: 'Dual Redundant Power Supply (jen NTS-3000)',
-        help: 'Volitelný redundantní zdroj napájení – pouze pro NTS-3000.',
-      },
-      dual_psu_auto: {
-        name: 'Dual Redundant Power Supply – automaticky součástí',
-        help: 'U modelů NTS-4000/5000 je duální napájení součástí standardu.',
-      },
-    },
-    modelAutoDual: 'Duální napájení je součástí (automaticky).',
-    modelOptionalDual: 'Duální napájení je volitelné.',
-    ptpPortsLabel: 'Počet PTP portů',
-    ptpPortsHint: 'Pouze pro NTS-5000 (1 až 4 porty).',
+    recommended: 'Doporučený model',
+    company: 'Společnost',
+    contact: 'Kontakt',
+    notes: 'Poznámky',
+    copyLink: 'Zkopírovat odkaz',
+    downloadJson: 'Stáhnout JSON',
+    permalink: 'Permalink',
+    ptpPorts: 'PTP porty (NTS-5000)',
+    autoIncluded: 'automaticky součástí',
   },
   en: {
-    brand: 'Westercom',
-    subtitle:
-      'An interactive wizard that helps you choose the right time server for your infrastructure.',
+    brandTitle: 'Elproma NTS Time Servers Configurator',
+    language: 'Language',
     overview: 'Time Servers Overview',
     unsure: 'Not sure?',
-    start: 'Start configurator',
+    startConfigurator: 'Start configurator',
     datasheet: 'Datasheet',
+    stepDevices: '1) How many devices?',
+    stepAccuracy: '2) Required accuracy',
+    stepAccessories: '3) Optional accessories',
+    stepExport: '4) Contacts & export',
+    continue: 'Continue',
     back: 'Back',
-    next: 'Next',
     newConfig: 'New configuration',
-    steps: ['Devices', 'Accuracy', 'Add-ons', 'Export'],
-    deviceBands: [
+    guideBox1: 'Dozens → NTP / basic PTP (PICO3 / NTS-3000).',
+    guideBox2:
+      'Hundreds to thousands → stronger GM, SFP, redundancy (NTS-4000/5000).',
+    bands: [
       { id: 'small', label: 'up to ~50 devices' },
       { id: 'medium', label: '~50–200 devices' },
       { id: 'large', label: '~200–1000 devices' },
       { id: 'xl', label: '>1000 devices' },
     ],
-    accuracy: [
-      { id: 'ntp', label: 'NTP – milliseconds', hint: 'IT networks, logs, CCTV' },
-      {
-        id: 'ptp_ent',
-        label: 'PTP Enterprise – sub-ms to tens of µs',
-        hint: 'datacenters, industry, trading edge',
-      },
-      {
-        id: 'ptp_prtc',
-        label: 'PTP Telecom/PRTC-A – sub-µs',
-        hint: 'telecom/utility, HW timestamping',
-      },
-      {
-        id: 'eprtc',
-        label: 'ePRTC / long holdover',
-        hint: 'critical infrastructure, rubidium',
-      },
+    accuracies: [
+      { id: 'ntp_ms', label: 'NTP – milliseconds', help: 'typical IT, logs, servers, CCTV' },
+      { id: 'ptp_ent', label: 'PTP Enterprise – sub-ms to tens of µs', help: 'datacentres, industry, trading edge' },
+      { id: 'ptp_prtc', label: 'PTP Telecom/PRTC-A – sub-µs', help: 'telecom/utility network sync' },
+      { id: 'eprtc', label: 'ePRTC / long holdover', help: 'critical infra, rubidium' },
     ],
-    accessoriesTitle: 'Optional accessories',
-    accessories: {
-      antenna: {
-        name: 'NTS-antenna – spare antenna',
-        help: '1 pc is already included. Spare GNSS antenna.',
-      },
-      irig: {
-        name: 'IRIG-B IN/OUT module w/ 1PPS output',
-        help: 'IRIG-B interface for input/output with 1PPS signal.',
-      },
-      fo: {
-        name: 'Fibre Optic Antenna Set',
-        help: 'Optical kit for long-distance GNSS antenna connection.',
-      },
-      '5071a': {
-        name: '5071A special support (firmware)',
-        help: 'Firmware support for 5071A cesium standards.',
-      },
-      dual_psu: {
-        name: 'Dual Redundant Power Supply (NTS-3000 only)',
-        help: 'Optional redundant power supply – only for NTS-3000.',
-      },
-      dual_psu_auto: {
-        name: 'Dual Redundant Power Supply – included',
-        help: 'For NTS-4000/5000 dual PSU is included by default.',
-      },
-    },
-    modelAutoDual: 'Dual PSU is included (automatically).',
-    modelOptionalDual: 'Dual PSU is optional.',
-    ptpPortsLabel: 'Number of PTP ports',
-    ptpPortsHint: 'NTS-5000 only (1 to 4 ports).',
+    recommended: 'Recommended model',
+    company: 'Company',
+    contact: 'Contact',
+    notes: 'Notes',
+    copyLink: 'Copy link',
+    downloadJson: 'Download JSON',
+    permalink: 'Permalink',
+    ptpPorts: 'PTP ports (NTS-5000)',
+    autoIncluded: 'included automatically',
   },
   pl: {
-    brand: 'Westercom',
-    subtitle:
-      'Interaktywny kreator, który pomaga wybrać odpowiedni serwer czasu dla Twojej infrastruktury.',
+    brandTitle: 'Konfigurator serwerów czasu Elproma NTS',
+    language: 'Język',
     overview: 'Przegląd serwerów czasu',
-    unsure: 'Niepewny?',
-    start: 'Uruchom kreator',
+    unsure: 'Nie pewien?',
+    startConfigurator: 'Uruchom konfigurator',
     datasheet: 'Karta katalogowa',
+    stepDevices: '1) Ile urządzeń?',
+    stepAccuracy: '2) Wymagana dokładność',
+    stepAccessories: '3) Akcesoria opcjonalne',
+    stepExport: '4) Kontakty i export',
+    continue: 'Dalej',
     back: 'Wstecz',
-    next: 'Dalej',
     newConfig: 'Nowa konfiguracja',
-    steps: ['Urządzenia', 'Dokładność', 'Dodatki', 'Eksport'],
-    deviceBands: [
+    guideBox1: 'Dziesiątki → NTP / podstawowy PTP (PICO3 / NTS-3000).',
+    guideBox2:
+      'Setki i tysiące → mocniejszy GM, SFP, redundancja (NTS-4000/5000).',
+    bands: [
       { id: 'small', label: 'do ~50 urządzeń' },
       { id: 'medium', label: '~50–200 urządzeń' },
       { id: 'large', label: '~200–1000 urządzeń' },
       { id: 'xl', label: '>1000 urządzeń' },
     ],
-    accuracy: [
-      { id: 'ntp', label: 'NTP – milisekundy', hint: 'sieci IT, logi, CCTV' },
-      {
-        id: 'ptp_ent',
-        label: 'PTP Enterprise – sub-ms do dziesiątek µs',
-        hint: 'centra danych, przemysł, trading',
-      },
-      {
-        id: 'ptp_prtc',
-        label: 'PTP Telecom/PRTC-A – sub-µs',
-        hint: 'telekom/utility, HW timestamping',
-      },
-      {
-        id: 'eprtc',
-        label: 'ePRTC / długi holdover',
-        hint: 'krytyczna infrastruktura, rubid',
-      },
+    accuracies: [
+      { id: 'ntp_ms', label: 'NTP – milisekundy', help: 'typowy IT, logi, serwery, CCTV' },
+      { id: 'ptp_ent', label: 'PTP Enterprise – sub-ms do dziesiątek µs', help: 'centra danych, przemysł' },
+      { id: 'ptp_prtc', label: 'PTP Telecom/PRTC-A – sub-µs', help: 'telekom / utility' },
+      { id: 'eprtc', label: 'ePRTC / długi holdover', help: 'krytyczna infrastruktura, rubid' },
     ],
-    accessoriesTitle: 'Opcjonalne akcesoria',
-    accessories: {
-      antenna: {
-        name: 'NTS-antenna – antena zapasowa',
-        help: '1 szt. już w zestawie. Zapasowa antena GNSS.',
-      },
-      irig: {
-        name: 'IRIG-B IN/OUT module z wyjściem 1PPS',
-        help: 'Interfejs IRIG-B dla wejścia/wyjścia z sygnałem 1PPS.',
-      },
-      fo: {
-        name: 'Zestaw światłowodowy anteny',
-        help: 'Zestaw optyczny do podłączenia anteny GNSS na większą odległość.',
-      },
-      '5071a': {
-        name: 'Wsparcie 5071A (firmware)',
-        help: 'Wsparcie firmware dla standardów cezowych 5071A.',
-      },
-      dual_psu: {
-        name: 'Podwójne zasilanie (tylko NTS-3000)',
-        help: 'Opcjonalne redundantne zasilanie – tylko dla NTS-3000.',
-      },
-      dual_psu_auto: {
-        name: 'Podwójne zasilanie – w zestawie',
-        help: 'Dla NTS-4000/5000 podwójne zasilanie jest standardem.',
-      },
-    },
-    modelAutoDual: 'Podwójne zasilanie w zestawie (automatycznie).',
-    modelOptionalDual: 'Podwójne zasilanie opcjonalne.',
-    ptpPortsLabel: 'Liczba portów PTP',
-    ptpPortsHint: 'Tylko NTS-5000 (1–4 porty).',
+    recommended: 'Model rekomendowany',
+    company: 'Firma',
+    contact: 'Kontakt',
+    notes: 'Uwagi',
+    copyLink: 'Kopiuj link',
+    downloadJson: 'Pobierz JSON',
+    permalink: 'Permalink',
+    ptpPorts: 'Porty PTP (NTS-5000)',
+    autoIncluded: 'w zestawie automatycznie',
   },
 };
 
-/* ------------ Modely ------------ */
-
-const MODELS: ModelInfo[] = [
+const MODELS: ModelCard[] = [
   {
     id: 'nts-pico3',
     name: 'NTS-PICO3',
-    header: 'Kompaktní | NTP/PTP (edge)',
+    subtitle: {
+      cs: 'Kompaktní | NTP/PTP (edge)',
+      en: 'Compact | NTP/PTP (edge)',
+      pl: 'Kompaktowy | NTP/PTP (edge)',
+    },
     img: '/img/nts-pico3.jpg',
-    // Pokud máš PDF, přidej odkaz; jinak # (ponechá anchor, nic nerozbije)
-    datasheet: '#',
-    summary: {
+    datasheet: 'NTS-PICO3', // dle požadavku (placeholder/název)
+    blurb: {
       cs: 'Pro malé sítě (desítky klientů), přesnost ms (NTP) / základní PTP.',
       en: 'For small networks (dozens of clients), ms accuracy (NTP) / basic PTP.',
-      pl: 'Dla małych sieci (dziesiątki klientów), dokładność ms (NTP) / podstawowy PTP.',
+      pl: 'Dla małych sieci (dziesiątki klientów), ms (NTP) / podstawowy PTP.',
     },
+    dualPsuAuto: false,
   },
   {
     id: 'nts-3000',
     name: 'NTS-3000',
-    header: 'PTP Grandmaster | NTP Stratum-1',
+    subtitle: {
+      cs: 'PTP Grandmaster | NTP Stratum-1',
+      en: 'PTP Grandmaster | NTP Stratum-1',
+      pl: 'PTP Grandmaster | NTP Stratum-1',
+    },
     img: '/img/nts-3000.jpg',
     datasheet:
       'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_3000_120525-tamqzn.pdf',
-    summary: {
-      cs: 'Pro stovky klientů, enterprise PTP (sub-ms až desítky µs). Duál PSU je volitelný.',
+    blurb: {
+      cs: 'Pro stovky klientů, enterprise PTP (sub-ms až desítky µs). Dual PSU je volitelný.',
       en: 'For hundreds of clients, enterprise PTP (sub-ms to tens of µs). Dual PSU is optional.',
-      pl: 'Dla setek klientów, enterprise PTP (sub-ms do dziesiątek µs). Podwójne zasilanie opcjonalne.',
+      pl: 'Dla setek klientów, enterprise PTP (sub-ms do dziesiątek µs). Dual PSU opcjonalnie.',
     },
+    dualPsuAuto: false,
   },
   {
     id: 'nts-4000',
     name: 'NTS-4000',
-    header: 'PTP/PRTC-A | vyšší kapacita',
+    subtitle: {
+      cs: 'PTP/PRTC-A | vyšší kapacita',
+      en: 'PTP/PRTC-A | higher capacity',
+      pl: 'PTP/PRTC-A | większa wydajność',
+    },
     img: '/img/nts-4000.jpg',
     datasheet:
       'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_4000_120525-t2ham9.pdf',
-    summary: {
-      cs: 'Pro stovky až tisíce klientů, SFP, redundance, sub-µs (telekom/utility). Duální napájení je součástí.',
-      en: 'For hundreds to thousands of clients, SFP, redundancy, sub-µs (telecom/utility). Dual PSU included.',
-      pl: 'Dla setek do tysięcy klientów, SFP, redundancja, sub-µs (telekom/utility). Podwójne zasilanie w zestawie.',
+    blurb: {
+      cs: 'Pro stovky až tisíce klientů, SFP, redundance, sub-µs (telekom/utility). Dual PSU je součástí (automaticky).',
+      en: 'For hundreds to thousands, SFP, redundancy, sub-µs (telecom/utility). Dual PSU included (automatic).',
+      pl: 'Dla setek i tysięcy, SFP, redundancja, sub-µs (telekom/utility). Dual PSU w zestawie (auto).',
     },
+    dualPsuAuto: true,
   },
   {
     id: 'nts-5000',
     name: 'NTS-5000',
-    header: 'ePRTC / PRTC A/B | rubidium',
+    subtitle: {
+      cs: 'ePRTC / PRTC A/B | rubidium',
+      en: 'ePRTC / PRTC A/B | rubidium',
+      pl: 'ePRTC / PRTC A/B | rubid',
+    },
     img: '/img/nts-5000.jpg',
     datasheet:
       'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/05/TimeSystems_NTS_5000_120525-eozbhw.pdf',
-    summary: {
-      cs: 'Pro velké/kritické instalace, ePRTC, dlouhý holdover, tisíce klientů. Duální napájení je součástí.',
-      en: 'For large/critical deployments, ePRTC, long holdover, thousands of clients. Dual PSU included.',
-      pl: 'Dla dużych/krytycznych instalacji, ePRTC, długi holdover, tysiące klientów. Podwójne zasilanie w zestawie.',
+    blurb: {
+      cs: 'Pro velké/kritické instalace, ePRTC, dlouhý holdover, tisíce klientů. Dual PSU je součástí (automaticky).',
+      en: 'For large/critical installs, ePRTC, long holdover, thousands of clients. Dual PSU included (automatic).',
+      pl: 'Dla dużych/krytycznych instalacji, ePRTC, długi holdover, tysiące klientów. Dual PSU w zestawie (auto).',
     },
+    dualPsuAuto: true,
+  },
+];
+
+const ACCESSORIES: Accessory[] = [
+  {
+    id: 'antenna',
+    label: {
+      cs: 'NTS-antenna – náhradní anténa (1 ks je již v balení)',
+      en: 'NTS-antenna – spare antenna (1 piece already in the box)',
+      pl: 'NTS-antenna – antena zapasowa (1 szt. w zestawie)',
+    },
+    hint: {
+      cs: 'Vhodné jako záloha nebo pro delší trasy s FO setem.',
+      en: 'Useful as a spare or with long runs (FO set).',
+      pl: 'Przydatna jako zapas lub z długimi trasami (FO set).',
+    },
+  },
+  {
+    id: 'irig',
+    label: {
+      cs: 'IRIG-B IN/OUT module s 1PPS výstupem',
+      en: 'IRIG-B IN/OUT module with 1PPS output',
+      pl: 'IRIG-B IN/OUT z 1PPS',
+    },
+    hint: {
+      cs: 'Pro časové signály IRIG-B, integrace se staršími systémy.',
+      en: 'IRIG-B timing, integration with legacy systems.',
+      pl: 'IRIG-B timing, integracja ze starszymi systemami.',
+    },
+  },
+  {
+    id: 'fo',
+    label: {
+      cs: 'Fibre Optic Antenna Set',
+      en: 'Fibre Optic Antenna Set',
+      pl: 'Fibre Optic Antenna Set',
+    },
+    hint: {
+      cs: 'Optické řešení pro vzdálené/rušené lokality GNSS antény.',
+      en: 'Optical solution for remote/noisy GNSS antenna locations.',
+      pl: 'Rozwiązanie optyczne do odległych/zakłóconych lokalizacji anten GNSS.',
+    },
+  },
+  {
+    id: '5071a',
+    label: {
+      cs: '5071A special support (firmware)',
+      en: '5071A special support (firmware)',
+      pl: '5071A special support (firmware)',
+    },
+    hint: {
+      cs: 'Speciální FW podpora (např. integrace s 5071A).',
+      en: 'Special FW feature set (e.g. integration with 5071A).',
+      pl: 'Specjalne wsparcie FW (np. integracja z 5071A).',
+    },
+  },
+  {
+    id: 'dual_psu_auto',
+    label: {
+      cs: 'Dual Redundant Power Supply — automaticky součástí',
+      en: 'Dual Redundant Power Supply — included automatically',
+      pl: 'Dual Redundant Power Supply — w zestawie automatycznie',
+    },
+    forceFor: ['nts-4000', 'nts-5000'],
+  },
+  {
+    id: 'dual_psu_3000',
+    label: {
+      cs: 'Dual Redundant Power Supply (jen NTS-3000)',
+      en: 'Dual Redundant Power Supply (only NTS-3000)',
+      pl: 'Dual Redundant Power Supply (tylko NTS-3000)',
+    },
+    onlyFor: ['nts-3000'],
   },
 ];
 
 /* =========================================================
-   Pomocné komponenty
-   ======================================================= */
+   Pomocné funkce (bez Buffer)
+========================================================= */
 
-function Logo2x2() {
-  return (
-    <div className="brand">
-      <div className="wgrid">
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="brand-txt">Westercom</div>
-    </div>
-  );
-}
-
-function Stepper({ active }: { active: number }) {
-  return (
-    <div className="progress">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className={`bar ${i <= active ? 'on' : ''}`} />
-      ))}
-    </div>
-  );
-}
-
-/* ------------ pravidla doporučení ------------ */
-function recommendModel(dev: DevBand, acc: AccuracyId): ModelId {
-  if (acc === 'eprtc') return 'nts-5000';
-  if (acc === 'ptp_prtc') return dev === 'xl' ? 'nts-5000' : 'nts-4000';
-  if (acc === 'ptp_ent') return dev === 'large' || dev === 'xl' ? 'nts-4000' : 'nts-3000';
-  // ntp
-  if (dev === 'small') return 'nts-pico3';
-  if (dev === 'medium') return 'nts-3000';
-  return 'nts-4000';
-}
-
-/* ---------- bezpečné btoa/atob (bez Buffer) ---------- */
 function enc(obj: unknown): string {
   const json = JSON.stringify(obj);
-  // TS-safe přístup na btoa/atob (v prohlížeči jsou vždy k dispozici)
-  return (globalThis as any).btoa(
-    unescape(encodeURIComponent(json))
-  );
+  return (globalThis as any).btoa(unescape(encodeURIComponent(json)));
 }
 
 function dec<T>(s: string | null): T | null {
   if (!s) return null;
   try {
-    const str = decodeURIComponent(
-      escape((globalThis as any).atob(s))
-    );
+    const str = decodeURIComponent(escape((globalThis as any).atob(s)));
     return JSON.parse(str) as T;
   } catch {
     return null;
   }
 }
 
+function recommendModel(devBand: DevBand, acc: AccuracyId): ModelId {
+  if (acc === 'eprtc') return 'nts-5000';
+  if (acc === 'ptp_prtc') return devBand === 'xl' ? 'nts-5000' : 'nts-4000';
+  if (acc === 'ptp_ent')
+    return devBand === 'large' || devBand === 'xl' ? 'nts-4000' : 'nts-3000';
+  if (devBand === 'small') return 'nts-pico3';
+  if (devBand === 'medium') return 'nts-3000';
+  return 'nts-4000';
+}
+
 /* =========================================================
-   Aplikace
-   ======================================================= */
+   App
+========================================================= */
 
 export default function App() {
   const [lang, setLang] = useState<Lang>('cs');
-  const T = I18N[lang];
+  const t = i18n[lang];
 
   const [screen, setScreen] = useState<Screen>('landing');
-  const [step, setStep] = useState<number>(0);
+
+  const [devBand, setDevBand] = useState<DevBand>('medium');
+  const [accuracy, setAccuracy] = useState<AccuracyId>('ptp_ent');
 
   const [config, setConfig] = useState<Config>({
     model: 'nts-3000',
     devBand: 'medium',
     accuracy: 'ptp_ent',
     accessories: [],
+    ptpPorts5000: 2,
+    company: '',
+    contact: '',
+    notes: '',
+    ptpProfile: 'Default',
   });
 
-  // načtení z URL (sdílený odkaz)
+  // načti z URL
   useEffect(() => {
-    const c = dec<Config>(new URLSearchParams(window.location.search).get('c'));
-    if (c) {
-      setConfig(c);
+    const c = new URLSearchParams(window.location.search).get('c');
+    const decC = dec<Config>(c);
+    if (decC) {
+      setConfig(decC);
       setScreen('wizard');
     }
   }, []);
 
-  // doporučení modelu + defaulty
+  // kdykoli změníš devBand/accuracy → doporuč model + auto PSU
   const recommendedId = useMemo(
-    () => recommendModel(config.devBand, config.accuracy),
-    [config.devBand, config.accuracy]
-  );
-  const recommendedModel = useMemo(
-    () => MODELS.find((m) => m.id === recommendedId)!,
-    [recommendedId]
+    () => recommendModel(devBand, accuracy),
+    [devBand, accuracy]
   );
 
-  // pokud je auto dual PSU (4000/5000), zamkni volbu a nastav auto flag
   useEffect(() => {
+    const m = MODELS.find((x) => x.id === recommendedId);
+    if (!m) return;
     setConfig((prev) => {
-      const next = { ...prev };
-      if (recommendedId === 'nts-4000' || recommendedId === 'nts-5000') {
-        // zajisti „dual_psu_auto“ a vyhoď případný „dual_psu“
-        next.accessories = [
-          ...new Set<AccessoryId>(
-            [...prev.accessories.filter((a) => a !== 'dual_psu'), 'dual_psu_auto'] as AccessoryId[]
-          ),
-        ];
+      const next: Config = {
+        ...prev,
+        model: m.id,
+        devBand,
+        accuracy,
+      };
+      // držme pravidla pro PSU:
+      if (m.dualPsuAuto) {
+        // 4000/5000 – jen zobrazit info, nic nepřidávat do výběru
+        next.accessories = prev.accessories.filter((a) => a !== 'dual_psu_3000');
       } else {
-        // 3000/pico – auto flag pryč
+        // u 3000 může být volitelně
         next.accessories = prev.accessories.filter((a) => a !== 'dual_psu_auto');
       }
-      // NTS-5000 – udrž rozumný ptpPorts
-      if (recommendedId !== 'nts-5000') {
-        delete next.ptpPorts;
-      } else {
-        if (!next.ptpPorts) next.ptpPorts = 1;
-      }
-      next.model = recommendedId;
       return next;
     });
-  }, [recommendedId]);
+  }, [recommendedId, devBand, accuracy]);
+
+  const onToggleAcc = (id: AccessoryId, checked: boolean) => {
+    setConfig((prev) => {
+      const set = new Set(prev.accessories);
+      if (checked) set.add(id);
+      else set.delete(id);
+      return { ...prev, accessories: Array.from(set) };
+    });
+  };
 
   const shareUrl = useMemo(() => {
     const base = window.location.origin + window.location.pathname;
-    return `${base}?c=${enc(config)}`;
+    const c = enc(config);
+    return `${base}?c=${c}`;
   }, [config]);
 
-  /* ---------------- LANDING ---------------- */
+  // landing cards
+  const cards = useMemo(() => {
+    return MODELS.map((m) => ({
+      ...m,
+      subtitleText: m.subtitle[lang],
+      blurbText: m.blurb[lang],
+    }));
+  }, [lang]);
 
-  if (screen === 'landing') {
-    return (
-      <div className="app">
-        <header className="top">
-          <Logo2x2 />
-          <div className="title">
-            <div className="name">Elproma NTS konfigurátor časových serverů</div>
-            <div className="sub">{T.subtitle}</div>
+  const accList = useMemo(() => {
+    return ACCESSORIES.filter((a) => {
+      if (a.disabledFor?.includes(config.model)) return false;
+      if (a.onlyFor && !a.onlyFor.includes(config.model)) return false;
+      return true;
+    });
+  }, [config.model]);
+
+  const dualAutoForModel = MODELS.find((x) => x.id === config.model)?.dualPsuAuto ?? false;
+
+  /* ---------------- rendering helpers ---------------- */
+
+  const LangSelect = () => (
+    <select
+      className="lang"
+      value={lang}
+      onChange={(e) => setLang(e.target.value as Lang)}
+    >
+      <option value="cs">Čeština</option>
+      <option value="en">English</option>
+      <option value="pl">Polski</option>
+    </select>
+  );
+
+  const Header = () => (
+    <header className="hdr">
+      <a className="brand" onClick={() => setScreen('landing')} href="#">
+        <span className="brand-tiles" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+        </span>
+        <span className="brand-title">{t.brandTitle}</span>
+      </a>
+      <div className="hdr-right">
+        <label className="lang-label">
+          {t.language}:{' '}
+          <LangSelect />
+        </label>
+      </div>
+    </header>
+  );
+
+  const Landing = () => (
+    <div className="container">
+      <Header />
+      <div className="lead">
+        <div className="lead-row">
+          <div className="lead-title">{t.overview}</div>
+          <div className="lead-actions">
+            {t.unsure}{' '}
+            <a href="#" onClick={() => setScreen('wizard')}>{t.startConfigurator}</a>.
           </div>
-          <div className="lang">
-            <label>Jazyk:</label>
-            <select value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
-              <option value="cs">Čeština</option>
-              <option value="en">English</option>
-              <option value="pl">Polski</option>
-            </select>
-          </div>
-        </header>
+        </div>
+      </div>
 
-        <main className="container">
-          <h2>{T.overview}</h2>
-          <p className="muted">
-            {T.unsure} <button className="link" onClick={() => setScreen('wizard')}>{T.start}</button>.
-          </p>
+      <div className="grid">
+        {cards.map((m) => (
+          <article key={m.id} className="card">
+            <div className="card-img">
+              <img src={m.img} alt={m.name} />
+            </div>
+            <div className="card-body">
+              <div className="card-title">{m.name}</div>
+              <div className="card-sub">{m.subtitleText}</div>
+              <p className="card-blurb">{m.blurbText}</p>
+            </div>
+            <div className="card-actions">
+              <a className="btn ghost" href={m.datasheet} target="_blank" rel="noreferrer">
+                {t.datasheet}
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
 
-          <div className="ovgrid">
-            {MODELS.map((m) => (
-              <section key={m.id} className="card">
-                <div className="imgbox">
-                  <img src={m.img} alt={m.name} />
-                </div>
-                <div className="cardbody">
-                  <div className="h">{m.name}</div>
-                  <div className="muted">{m.header}</div>
-                  <p className="desc">{m.summary[lang]}</p>
-                  <div className="actions">
-                    {m.datasheet && (
-                      <a className="btn ghost" href={m.datasheet} target="_blank" rel="noreferrer">
-                        {T.datasheet}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </section>
+      <div className="center">
+        <button className="btn primary" onClick={() => setScreen('wizard')}>
+          {t.startConfigurator}
+        </button>
+      </div>
+    </div>
+  );
+
+  const Wizard = () => (
+    <div className="container">
+      <Header />
+
+      {/* 1) Devices */}
+      <section className="section">
+        <div className="section-h">{t.stepDevices}</div>
+        <div className="two">
+          <div className="col">
+            {t.bands.map((b) => (
+              <label key={b.id} className="opt">
+                <input
+                  type="radio"
+                  name="devBand"
+                  checked={devBand === b.id}
+                  onChange={() => setDevBand(b.id)}
+                />
+                <span>{b.label}</span>
+              </label>
             ))}
           </div>
-
-          <div className="center mt24">
-            <button className="btn primary" onClick={() => setScreen('wizard')}>
-              {T.start}
-            </button>
+          <div className="col note">
+            <div className="note-title">Tip</div>
+            <ul>
+              <li>{t.guideBox1}</li>
+              <li>{t.guideBox2}</li>
+            </ul>
           </div>
-        </main>
-      </div>
-    );
-  }
-
-  /* ---------------- WIZARD ---------------- */
-
-  const setDevBand = (id: DevBand) => setConfig((p) => ({ ...p, devBand: id }));
-  const setAccuracy = (id: AccuracyId) => setConfig((p) => ({ ...p, accuracy: id }));
-
-  const toggleAccessory = (id: AccessoryId) =>
-    setConfig((p) => {
-      const s = new Set<AccessoryId>(p.accessories);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
-      return { ...p, accessories: Array.from(s) };
-    });
-
-  const A = I18N[lang].accessories;
-
-  return (
-    <div className="app">
-      <header className="top">
-        <Logo2x2 />
-        <div className="title">
-          <div className="name">Elproma NTS konfigurátor časových serverů</div>
-          <div className="sub">{T.subtitle}</div>
         </div>
-        <div className="lang">
-          <label>Jazyk:</label>
-          <select value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
-            <option value="cs">Čeština</option>
-            <option value="en">English</option>
-            <option value="pl">Polski</option>
-          </select>
+      </section>
+
+      {/* 2) Accuracy */}
+      <section className="section">
+        <div className="section-h">{t.stepAccuracy}</div>
+        <div className="two">
+          <div className="col">
+            {t.accuracies.map((a) => (
+              <label key={a.id} className="opt opt-top">
+                <input
+                  type="radio"
+                  name="acc"
+                  checked={accuracy === a.id}
+                  onChange={() => setAccuracy(a.id)}
+                />
+                <span>
+                  <div className="opt-title">{a.label}</div>
+                  <div className="opt-hint">{a.help}</div>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="col note">
+            <div className="note-title">{t.recommended}</div>
+            <div className="rec">
+              <div className="rec-name">
+                {MODELS.find((m) => m.id === recommendedId)?.name}
+              </div>
+              <div className="rec-sub">
+                {MODELS.find((m) => m.id === recommendedId)?.subtitle[lang]}
+              </div>
+              <p className="rec-txt">
+                {
+                  MODELS.find((m) => m.id === recommendedId)?.blurb[
+                    lang
+                  ]
+                }
+              </p>
+            </div>
+          </div>
         </div>
-      </header>
+      </section>
 
-      <main className="container">
-        <Stepper active={step} />
+      {/* 3) Accessories */}
+      <section className="section">
+        <div className="section-h">{t.stepAccessories}</div>
 
-        {/* 1) Devices */}
-        {step === 0 && (
-          <section className="card">
-            <div className="cardhead">
-              <b>{T.steps[0]}</b>
-            </div>
-            <div className="pad grid2">
-              <div>
-                {T.deviceBands.map((b) => (
-                  <label key={b.id} className="opt">
-                    <input
-                      type="radio"
-                      checked={config.devBand === b.id}
-                      onChange={() => setDevBand(b.id)}
-                    />
-                    <span>{b.label}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="hint">
-                <div className="b">Tip</div>
-                <ul>
-                  <li>Desítky klientů → NTP / základní PTP (PICO3 / NTS-3000).</li>
-                  <li>Stovky až tisíce → výkonnější GM, SFP, redundance (NTS-4000/5000).</li>
-                </ul>
-              </div>
-            </div>
-            <div className="footer">
-              <button className="btn primary" onClick={() => setStep(1)}>{T.next}</button>
-            </div>
-          </section>
+        {/* PSU auto info (4000/5000) */}
+        {dualAutoForModel && (
+          <div className="alert">
+            <strong>Dual PSU</strong> — {t.autoIncluded}.
+          </div>
         )}
 
-        {/* 2) Accuracy */}
-        {step === 1 && (
-          <section className="card">
-            <div className="cardhead">
-              <b>{T.steps[1]}</b>
-            </div>
-            <div className="pad grid2">
-              <div>
-                {T.accuracy.map((a) => (
-                  <label key={a.id} className="opt">
+        <div className="two">
+          <div className="col">
+            {accList.map((a) => {
+              const only3000 = a.onlyFor?.includes('nts-3000') ?? false;
+              const isAuto = a.forceFor?.includes(config.model) ?? false;
+              const checked = config.accessories.includes(a.id);
+
+              // pro dual_psu_auto nikdy neukazovat jako checkbox
+              if (a.id === 'dual_psu_auto') return null;
+
+              // pro dual_psu_3000 zobrazit jen u NTS-3000
+              if (a.id === 'dual_psu_3000' && config.model !== 'nts-3000')
+                return null;
+
+              return (
+                <label key={a.id} className="opt opt-top">
+                  {!isAuto && (
                     <input
-                      type="radio"
-                      checked={config.accuracy === a.id}
-                      onChange={() => setAccuracy(a.id)}
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => onToggleAcc(a.id, e.target.checked)}
                     />
-                    <span>
-                      <div className="b">{a.label}</div>
-                      <div className="muted small">{a.hint}</div>
-                    </span>
-                  </label>
-                ))}
-              </div>
+                  )}
+                  <span>
+                    <div className="opt-title">
+                      {a.label[lang]}
+                      {only3000 && ' • NTS-3000'}
+                      {isAuto && ` • ${t.autoIncluded}`}
+                    </div>
+                    {a.hint && <div className="opt-hint">{a.hint[lang]}</div>}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="col">
+            {/* PTP ports for NTS-5000 */}
+            {config.model === 'nts-5000' && (
               <div className="box">
-                <div className="b">{recommendedModel.name}</div>
-                <div className="muted">{recommendedModel.header}</div>
-                <p className="muted small">{recommendedModel.summary[lang]}</p>
-                <p className="muted small">
-                  {recommendedId === 'nts-4000' || recommendedId === 'nts-5000'
-                    ? T.modelAutoDual
-                    : T.modelOptionalDual}
+                <div className="box-h">{t.ptpPorts}</div>
+                <div className="row">
+                  {[1, 2, 3, 4].map((n) => (
+                    <label key={n} className="opt-inline">
+                      <input
+                        type="radio"
+                        name="ptp5000"
+                        checked={config.ptpPorts5000 === (n as 1 | 2 | 3 | 4)}
+                        onChange={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            ptpPorts5000: n as 1 | 2 | 3 | 4,
+                          }))
+                        }
+                      />
+                      <span>{n}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="box">
+              <div className="box-h">{t.recommended}</div>
+              <div className="rec">
+                <div className="rec-name">
+                  {MODELS.find((m) => m.id === config.model)?.name}
+                </div>
+                <div className="rec-sub">
+                  {MODELS.find((m) => m.id === config.model)?.subtitle[lang]}
+                </div>
+                <p className="rec-txt">
+                  {MODELS.find((m) => m.id === config.model)?.blurb[lang]}
                 </p>
               </div>
             </div>
-            <div className="footer">
-              <button className="btn ghost" onClick={() => setStep(0)}>{T.back}</button>
-              <button className="btn primary" onClick={() => setStep(2)}>{T.next}</button>
+          </div>
+        </div>
+      </section>
+
+      {/* 4) Export */}
+      <section className="section">
+        <div className="section-h">{t.stepExport}</div>
+
+        <div className="two">
+          <div className="col">
+            <div className="field">
+              <label>{t.company}</label>
+              <input
+                value={config.company}
+                onChange={(e) =>
+                  setConfig((prev) => ({ ...prev, company: e.target.value }))
+                }
+              />
             </div>
-          </section>
-        )}
-
-        {/* 3) Accessories */}
-        {step === 2 && (
-          <section className="card">
-            <div className="cardhead">
-              <b>{T.accessoriesTitle}</b>
+            <div className="field">
+              <label>{t.contact}</label>
+              <input
+                value={config.contact}
+                onChange={(e) =>
+                  setConfig((prev) => ({ ...prev, contact: e.target.value }))
+                }
+              />
             </div>
+            <div className="field">
+              <label>{t.notes}</label>
+              <textarea
+                rows={4}
+                value={config.notes}
+                onChange={(e) =>
+                  setConfig((prev) => ({ ...prev, notes: e.target.value }))
+                }
+              />
+            </div>
+          </div>
 
-            <div className="pad grid2">
-              <div className="vstack">
-                {/* Antenna */}
-                <label className="opt">
-                  <input
-                    type="checkbox"
-                    checked={config.accessories.includes('antenna')}
-                    onChange={() => toggleAccessory('antenna')}
-                  />
-                  <span>
-                    <div className="b">{A.antenna.name}</div>
-                    <div className="muted small">{A.antenna.help}</div>
-                  </span>
-                </label>
-
-                {/* IRIG */}
-                <label className="opt">
-                  <input
-                    type="checkbox"
-                    checked={config.accessories.includes('irig')}
-                    onChange={() => toggleAccessory('irig')}
-                  />
-                  <span>
-                    <div className="b">{A.irig.name}</div>
-                    <div className="muted small">{A.irig.help}</div>
-                  </span>
-                </label>
-
-                {/* Fibre Optic set */}
-                <label className="opt">
-                  <input
-                    type="checkbox"
-                    checked={config.accessories.includes('fo')}
-                    onChange={() => toggleAccessory('fo')}
-                  />
-                  <span>
-                    <div className="b">{A.fo.name}</div>
-                    <div className="muted small">{A.fo.help}</div>
-                  </span>
-                </label>
-
-                {/* 5071A */}
-                <label className="opt">
-                  <input
-                    type="checkbox"
-                    checked={config.accessories.includes('5071a')}
-                    onChange={() => toggleAccessory('5071a')}
-                  />
-                  <span>
-                    <div className="b">{A['5071a'].name}</div>
-                    <div className="muted small">{A['5071a'].help}</div>
-                  </span>
-                </label>
-
-                {/* Dual PSU – optional only for NTS-3000 */}
-                <label className={`opt ${recommendedId !== 'nts-3000' ? 'disabled' : ''}`}>
-                  <input
-                    type="checkbox"
-                    disabled={recommendedId !== 'nts-3000'}
-                    checked={config.accessories.includes('dual_psu')}
-                    onChange={() => toggleAccessory('dual_psu')}
-                  />
-                  <span>
-                    <div className="b">{A.dual_psu.name}</div>
-                    <div className="muted small">{A.dual_psu.help}</div>
-                  </span>
-                </label>
-
-                {/* Dual PSU auto – always ON for 4000/5000 */}
-                {(recommendedId === 'nts-4000' || recommendedId === 'nts-5000') && (
-                  <label className="opt disabled">
-                    <input type="checkbox" checked readOnly />
-                    <span>
-                      <div className="b">{A.dual_psu_auto.name}</div>
-                      <div className="muted small">{A.dual_psu_auto.help}</div>
-                    </span>
-                  </label>
-                )}
-
-                {/* NTS-5000 – PTP ports 1–4 */}
-                {recommendedId === 'nts-5000' && (
-                  <div className="opt">
-                    <span>
-                      <div className="b">{T.ptpPortsLabel}</div>
-                      <div className="muted small">{T.ptpPortsHint}</div>
-                      <div className="mt8">
-                        <select
-                          value={config.ptpPorts ?? 1}
-                          onChange={(e) =>
-                            setConfig((p) => ({ ...p, ptpPorts: Number(e.target.value) }))
-                          }
-                        >
-                          {[1, 2, 3, 4].map((n) => (
-                            <option key={n} value={n}>
-                              {n}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="box">
-                <div className="b">{recommendedModel.name}</div>
-                <div className="muted">{recommendedModel.header}</div>
-                <p className="muted small">{recommendedModel.summary[lang]}</p>
-              </div>
+          <div className="col">
+            <div className="summary">
+              <div className="box-h">Shrnutí</div>
+              <pre className="pre">
+{`Model: ${config.model}
+Zařízení: ${devBand}
+Přesnost: ${accuracy}
+PTP profil: ${config.ptpProfile}
+Doplňky: ${config.accessories.join(', ') || '—'}
+${config.model === 'nts-5000' ? `PTP ports: ${config.ptpPorts5000}` : ''}`}
+              </pre>
             </div>
 
-            <div className="footer">
-              <button className="btn ghost" onClick={() => setStep(1)}>{T.back}</button>
-              <button className="btn primary" onClick={() => setStep(3)}>{T.next}</button>
-            </div>
-          </section>
-        )}
-
-        {/* 4) Export */}
-        {step === 3 && (
-          <section className="card">
-            <div className="cardhead">
-              <b>{T.steps[3]}</b>
-            </div>
-            <div className="pad grid2">
-              <div className="box">
-                <div className="b">Permalink</div>
-                <textarea className="permalink" readOnly value={shareUrl} />
-                <div className="mt8">
-                  <button
-                    className="btn primary"
-                    onClick={() => navigator.clipboard.writeText(shareUrl)}
-                  >
-                    Kopírovat odkaz
-                  </button>
-                </div>
-              </div>
-              <div className="box">
-                <div className="b">Shrnutí</div>
-                <pre className="sum">
-{JSON.stringify(
-  {
-    decision: { devBand: config.devBand, accuracy: config.accuracy },
-    model: recommendedModel.name,
-    accessories: config.accessories,
-    ptpPorts: config.ptpPorts,
-  },
-  null,
-  2
-)}
-                </pre>
-                <div className="mt8">
-                  <button
-                    className="btn ghost"
-                    onClick={() => {
-                      const blob = new Blob(
-                        [
-                          JSON.stringify(
-                            {
-                              decision: { devBand: config.devBand, accuracy: config.accuracy },
-                              ...config,
-                            },
-                            null,
-                            2
-                          ),
-                        ],
-                        { type: 'application/json' }
-                      );
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `${recommendedModel.id}-config.json`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                  >
-                    Stáhnout JSON
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="footer">
-              <button className="btn ghost" onClick={() => setStep(2)}>{T.back}</button>
+            <div className="row g8">
               <button
-                className="btn"
+                className="btn primary"
+                onClick={() => navigator.clipboard.writeText(shareUrl)}
+              >
+                {t.copyLink}
+              </button>
+              <button
+                className="btn ghost"
                 onClick={() => {
-                  setStep(0);
-                  setScreen('landing');
+                  const blob = new Blob([JSON.stringify(config, null, 2)], {
+                    type: 'application/json',
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${config.model}-config.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                {t.downloadJson}
+              </button>
+            </div>
+
+            <div className="permalink">
+              <div className="box-h">{t.permalink}</div>
+              <div className="link-ellipsis" title={shareUrl}>
+                {shareUrl}
+              </div>
+            </div>
+
+            <div className="row end">
+              <button
+                className="btn ghost"
+                onClick={() => {
+                  setDevBand('medium');
+                  setAccuracy('ptp_ent');
                   setConfig({
                     model: 'nts-3000',
                     devBand: 'medium',
                     accuracy: 'ptp_ent',
                     accessories: [],
+                    ptpPorts5000: 2,
+                    company: '',
+                    contact: '',
+                    notes: '',
+                    ptpProfile: 'Default',
                   });
+                  setScreen('landing');
                 }}
               >
-                {T.newConfig}
+                {t.newConfig}
               </button>
             </div>
-          </section>
-        )}
-      </main>
+          </div>
+        </div>
+      </section>
     </div>
   );
+
+  return screen === 'landing' ? <Landing /> : <Wizard />;
 }
