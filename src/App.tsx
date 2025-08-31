@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import './App.css';
 
 /* ========= Typy ========= */
@@ -20,8 +20,16 @@ type Model = {
 
 /* ========= Texty ========= */
 const TXT = {
-  brand: { cs: 'Elproma NTS konfigurátor časových serverů', en: 'Elproma NTS Time Servers Configurator', pl: 'Konfigurator serwerów czasu Elproma NTS' } as I18nBlock,
-  heading: { cs: 'Přehled časových serverů', en: 'Time Servers Overview', pl: 'Przegląd serwerów czasu' } as I18nBlock,
+  brand: {
+    cs: 'Elproma NTS konfigurátor časových serverů',
+    en: 'Elproma NTS Time Servers Configurator',
+    pl: 'Konfigurator serwerów czasu Elproma NTS',
+  } as I18nBlock,
+  heading: {
+    cs: 'Přehled časových serverů',
+    en: 'Time Servers Overview',
+    pl: 'Przegląd serwerów czasu',
+  } as I18nBlock,
   unsure: { cs: 'Nejste si jistí?', en: 'Not sure?', pl: 'Nie jesteś pewien?' } as I18nBlock,
   start: { cs: 'Spustit konfigurátor', en: 'Start configurator', pl: 'Uruchom konfigurator' } as I18nBlock,
   datasheet: { cs: 'Datasheet', en: 'Datasheet', pl: 'Karta katalogowa' } as I18nBlock,
@@ -33,7 +41,6 @@ const MODELS: Model[] = [
     id: 'nts-pico3',
     name: 'NTS-PICO3',
     img: '/img/nts-pico3.jpg',
-    // nemáme odkaz na datasheet → necháme prázdné
     tag: {
       cs: 'Kompaktní | NTP/PTP (edge)',
       en: 'Compact | NTP/PTP (edge)',
@@ -202,7 +209,6 @@ function Landing({
 }
 
 function Wizard({ lang, goHome }: { lang: Lang; goHome: () => void }) {
-  // Sem můžeš vrátit svůj existující “průvodce”. Zatím jednoduché placeholder UI:
   return (
     <main className="container">
       <div className="heading-row">
