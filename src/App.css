@@ -1,77 +1,115 @@
-.app{min-height:100vh}
-
-.container{max-width:1100px;margin:0 auto;padding:24px}
-
-.header{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:16px;margin-bottom:12px;
+:root{
+  --text:#111; --muted:#666; --border:#e6e6e6;
+  --bg:#fff; --bg-soft:#fafafa;
+  --primary:#111; --primary-contrast:#fff;
+  --radius:12px; --shadow:0 6px 24px rgba(0,0,0,.06);
 }
 
-.brand{display:flex;align-items:center;gap:10px;cursor:pointer}
-.brand .wgrid{
-  display:grid;grid-template-columns:repeat(2,12px);grid-template-rows:repeat(2,12px);
-  gap:3px;margin-right:6px;
+*{ box-sizing:border-box; }
+html,body,#root{ height:100%; }
+body{ margin:0; font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial; color:var(--text); background:#f4f5f7; }
+
+.app{ min-height:100%; }
+
+.top{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 16px; background:#fff; border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:10;
 }
-.brand .wgrid span{
-  width:12px;height:12px;border-radius:3px;background:#2b6fe8;
-}
-.brand-title{font-weight:700}
 
-.lang{display:flex;align-items:center;gap:8px}
+/* --- Westercom logo 2×2 --- */
+.brand{ display:flex; align-items:center; gap:10px; user-select:none; cursor:pointer; }
+.brand-txt{ font-weight:700; }
 
-h1{font-size:20px;margin:8px 0 16px}
-
-.lead{color:var(--muted);margin-bottom:16px}
-
-.grid{
+.wgrid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
-  gap:16px;
+  grid-template-rows:repeat(2,1fr);
+  gap:3px; width:28px; height:28px;
 }
-@media (max-width:900px){ .grid{grid-template-columns:1fr} }
+.wgrid span{ display:block; border-radius:4px; }
+.wgrid span:nth-child(1){ background:#2266ff; }
+.wgrid span:nth-child(2){ background:#4d8aff; }
+.wgrid span:nth-child(3){ background:#4d8aff; }
+.wgrid span:nth-child(4){ background:#2266ff; }
 
-.card{
-  border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;background:#fff;
-  display:flex;flex-direction:column;
-}
-.card .imgbox{
-  display:flex;align-items:center;justify-content:center;background:#fafafa;padding:16px;min-height:150px;
-}
-.card img{max-width:100%;height:auto;object-fit:contain}
+.title .name{ font-weight:700; }
+.title .sub{ color:var(--muted); font-size:12px; }
 
-.card-body{padding:16px}
-.card h3{margin:0 0 6px 0}
-.card small{display:block;color:var(--muted);margin-bottom:8px}
+.lang{ margin-left:auto; display:flex; align-items:center; gap:6px; }
+.lang select{ border:1px solid var(--border); border-radius:8px; padding:6px 8px; background:#fff; }
 
-.actions{padding:16px}
+.container{ max-width:1120px; margin:0 auto; padding:16px; }
+.muted{ color:var(--muted); }
+.small{ font-size:12px; }
+.mt8{ margin-top:8px; }
+.mt24{ margin-top:24px; }
+.center{ text-align:center; }
+
+.link{ background:none; border:none; padding:0; color:#2266ff; cursor:pointer; }
 
 .btn{
-  display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;
-  border:1px solid var(--border);background:#fff;cursor:pointer
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 14px; border-radius:10px; border:1px solid var(--border);
+  background:#fff; cursor:pointer; transition:box-shadow .2s ease, transform .02s ease;
 }
-.btn:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
-.btn-primary{background:var(--primary);color:var(--primary-contrast);border-color:#111}
+.btn:hover{ box-shadow:0 4px 12px rgba(0,0,0,.08); }
+.btn:active{ transform:translateY(1px); }
+.btn.primary{ background:var(--primary); color:var(--primary-contrast); border-color:#111; }
+.btn.ghost{ background:transparent; }
 
-.progress{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0 24px}
-.progress div{height:8px;border-radius:999px;background:#e5e5e5}
-.progress div.active{background:linear-gradient(90deg,#111,#333)}
+/* --- progress --- */
+.progress{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:8px 0 16px; }
+.progress .bar{ height:8px; border-radius:999px; background:#e5e5e5; }
+.progress .bar.on{ background:linear-gradient(90deg,#111,#333); }
 
-.form{
-  display:grid;grid-template-columns:1fr 1fr;gap:16px;
+/* --- Cards --- */
+.card{
+  background:#fff; border:1px solid var(--border); border-radius:16px;
+  box-shadow:var(--shadow); overflow:hidden; margin-bottom:16px;
 }
-@media (max-width:900px){ .form{grid-template-columns:1fr} }
-
-.field{display:flex;flex-direction:column;gap:6px}
-.input, .textarea{
-  width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font:inherit;background:#fff
+.cardhead{ padding:16px; border-bottom:1px solid var(--border); }
+.cardbody{ padding:16px; }
+.card .h{ font-weight:700; }
+.actions{ margin-top:8px; }
+.footer{
+  padding:12px 16px; display:flex; gap:8px; justify-content:flex-end; border-top:1px solid var(--border);
 }
-.textarea{min-height:90px;resize:vertical}
+.pad{ padding:16px; }
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.box{ background:var(--bg-soft); border:1px solid var(--border); border-radius:12px; padding:12px; }
+.hint{ background:var(--bg-soft); border:1px solid var(--border); border-radius:12px; padding:12px; }
+.vstack > * + *{ margin-top:8px; }
 
-.pale{color:var(--muted)}
+/* --- landing karty bez mezer (ovgrid) --- */
+.ovgrid{ display:flex; flex-wrap:wrap; gap:16px; }
+.ovgrid .card{ flex:1 1 520px; min-width:320px; display:flex; flex-direction:column; }
+.imgbox{
+  width:100%; aspect-ratio:16/5; display:flex; align-items:center; justify-content:center;
+  overflow:hidden; background:#fff;
+}
+.imgbox img{ max-width:100%; height:auto; object-fit:contain; }
 
-.summary{background:#fafafa;border-radius:12px;padding:16px;font-size:13px;white-space:pre-wrap}
+.opt{
+  display:flex; gap:12px; align-items:flex-start; padding:10px; border:1px solid var(--border);
+  border-radius:12px; cursor:pointer; background:#fff;
+}
+.opt input{ margin-top:3px; }
+.opt.disabled{ opacity:.55; pointer-events:none; }
+
+/* --- permalink & summary --- */
 .permalink{
-  border:1px solid var(--border);border-radius:12px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:12px;overflow:auto
+  width:100%; height:80px; border:1px solid var(--border); border-radius:8px; padding:8px;
+  font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:11px;
+  white-space:pre-wrap; word-break:break-all; background:#fff;
+}
+.sum{
+  margin:0; background:#fff; border:1px solid var(--border); border-radius:8px; padding:8px;
+  font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; max-height:220px; overflow:auto;
 }
 
-.footer{margin-top:20px;color:var(--muted);font-size:12px}
+/* --- responsive --- */
+@media (max-width: 860px){
+  .grid2{ grid-template-columns:1fr; }
+  .lang label{ display:none; }
+}
