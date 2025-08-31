@@ -474,19 +474,39 @@ const MODELS: Array<{
 ];
 
 /** ========== HELPERS ========== */
-function encodeConfig(cfg: unknown) {
+function encodeConfig(cfg: unknown): string {
   const json = JSON.stringify(cfg);
-  return typeof window !== "undefined"
-    ? window.btoa(unescape(encodeURIComponent(json)))
-    : Buffer.from(json).toString("base64");
+
+  // 1) Prohlížeč: použij btoa
+  if (typeof globalThis !== "undefined" && typeof (globalThis as any).btoa === "function") {
+    return (globalThis as any).btoa(unescape(encodeURIComponent(json)));
+  }
+
+  // 2) Build/Node-like: použij Buffer, ale pouze dynamicky přes globalThis (bez typů)
+  if (typeof globalThis !== "undefined" && (globalThis as any).Buffer) {
+    return (globalThis as any).Buffer.from(json, "utf-8").toString("base64");
+  }
+
+  // 3) Nouzová cesta
+  return json;
 }
-function decodeConfig(str: string) {
+
+function decodeConfig(str: string): any | null {
   try {
-    const json =
-      typeof window !== "undefined"
-        ? decodeURIComponent(escape(window.atob(str)))
-        : Buffer.from(str, "base64").toString("utf-8");
-    return JSON.parse(json);
+    // 1) Prohlížeč: atob
+    if (typeof globalThis !== "undefined" && typeof (globalThis as any).atob === "function") {
+      const dec = (globalThis as any).atob(str);
+      return JSON.parse(decodeURIComponent(escape(dec)));
+    }
+
+    // 2) Build/Node-like: Buffer
+    if (typeof globalThis !== "undefined" && (globalThis as any).Buffer) {
+      const dec = (globalThis as any).Buffer.from(str, "base64").toString("utf-8");
+      return JSON.parse(dec);
+    }
+
+    // 3) Nouzová cesta
+    return JSON.parse(str);
   } catch {
     return null;
   }
