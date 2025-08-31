@@ -367,17 +367,18 @@ export default function App() {
         {screen === 'landing' ? (
           <Landing t={t} onStart={() => setScreen('wizard')} />
         ) : (
-          <Wizard
-            t={t}
-            cfg={cfg}
-            setCfg={setCfg}
-            recommended={recommended}
-            shareUrl={shareUrl}
-            onBackToLanding={() => {
-              setScreen('landing');
-              window.scrollTo(0, 0);
-            }}
-          />
+       <Wizard
+  t={t}
+  cfg={cfg}
+  setCfg={setCfg}
+  recommended={recommended}
+  shareUrl={shareUrl}
+  summaryText={summaryText}
+  onBackToLanding={() => {
+    setScreen('landing');
+    window.scrollTo(0, 0);
+  }}
+/>
         )}
       </main>
     </div>
@@ -436,6 +437,7 @@ function Wizard({
   setCfg,
   recommended,
   shareUrl,
+  summaryText,
   onBackToLanding,
 }: {
   t: (k: string) => string;
@@ -443,6 +445,7 @@ function Wizard({
   setCfg: (u: (p: Config) => Config) => void;
   recommended: (typeof MODELS)[number];
   shareUrl: string;
+  summaryText: string;
   onBackToLanding: () => void;
 }) {
   const [step, setStep] = useState(0);
