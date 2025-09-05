@@ -1,110 +1,75 @@
 :root{
-  --text:#111;
-  --muted:#666;
-  --border:#e6e6e6;
-  --bg:#fff;
-  --bg-soft:#fafafa;
-  --primary:#111;
-  --primary-contrast:#fff;
-  --radius:16px;
-  --shadow:0 6px 24px rgba(0,0,0,.06);
+  --text:#111; --muted:#666; --border:#e7e7e7; --bg:#fff;
+  --primary:#111; --primary-contrast:#fff;
+  --radius:14px; --shadow:0 6px 20px rgba(0,0,0,.06);
 }
 
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0;background:#fff;color:var(--text);font:16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif}
+body{margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--text); background:#fafafa}
 
-/* ====== Header ====== */
 .app-header{
-  max-width:1100px; margin:16px auto 8px; padding:0 16px;
   display:flex; align-items:center; justify-content:space-between;
-  gap:12px;
+  max-width:1100px; margin:18px auto 8px; padding:0 16px;
 }
-.brand{
-  display:flex; align-items:center; gap:10px;
-  background:transparent; border:0; cursor:pointer; padding:0;
-}
-.brand img{display:block}
-.brand-text{font-weight:600; color:#1b1b1b; white-space:nowrap}
+.brand{display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit}
+.brand__logo{height:28px; width:auto; display:block; object-fit:contain}
+.brand__title{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.header-right{font-size:14px}
+.muted{color:var(--muted)}
+.link{color:#0066cc; text-decoration:none}
+.link:hover{text-decoration:underline}
 
-.lang{display:flex; align-items:center; gap:8px; color:var(--muted)}
-.lang select{padding:6px 8px; border:1px solid var(--border); border-radius:8px; background:#fff}
+.container{max-width:1100px; margin:0 auto; padding:0 16px 32px}
+h1{font-size:22px; margin:8px 0 16px}
 
-/* ====== Layout container ====== */
-.container{max-width:1100px; margin:0 auto; padding:0 16px 24px}
-
-.heading-row{
-  display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
-  margin:8px 0 16px;
+.grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:18px;
 }
-.heading-row h1{font-size:22px; margin:0}
-.hint{color:var(--muted)}
-.btn-link{
-  background:transparent; border:0; color:#0a58ca; cursor:pointer; padding:0; font-weight:600;
-}
-.btn-link:hover{ text-decoration:underline }
-
-/* ====== Grid (2 columns desktop, 1 column mobile) ====== */
-.models{
-  display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:20px;
-}
-@media (max-width:900px){
-  .models{ grid-template-columns:1fr; }
+@media (max-width: 860px){
+  .grid{grid-template-columns: 1fr;}
 }
 
-/* ====== Card with equal heights ====== */
+/* Karta = stejná výška všude */
 .card{
-  border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
-  background:var(--bg);
-  display:flex; flex-direction:column; overflow:hidden;
-  min-height: 360px; /* přirozená minimální výška, ale o výšku se stará flex */
+  display:flex; flex-direction:column;
+  background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  min-height: 460px;            /* stejné výšky „bez mezer“ */
 }
-.card__img{ padding:16px; background:#fff; border-bottom:1px solid #f0f0f0; }
-.card__img img{ width:100%; height:auto; display:block; object-fit:contain }
 
-.card__content{
-  display:flex; flex-direction:column; gap:8px;
-  padding:14px 16px 16px;
-  flex:1 1 auto; /* klíč: obsah vyplní výšku, takže actions bude dole */
+.card__media{
+  height: 190px;                /* fixní výška pro stejné karty */
+  background:#fff;
+  display:flex; align-items:center; justify-content:center;
+  border-bottom:1px solid var(--border);
 }
-.card__title{ font-size:16px; font-weight:700; margin:0 }
-.card__tag{ color:var(--muted); font-size:13px }
-.card__desc{ color:#333; font-size:14px; margin:4px 0 0 }
+.card__media img{
+  max-width:92%; max-height:92%; object-fit:contain; display:block;
+}
 
-/* push element – přitlačí actions na spodek karty */
-.card__push{ margin-top:auto }
+.card__body{padding:16px; flex:1 1 auto; display:flex; flex-direction:column; gap:8px}
+.card__title{margin:0; font-size:16px; font-weight:700}
+.card__subtitle{font-size:13px; color:var(--muted)}
+.card__text{margin:0; font-size:14px; color:#222}
 
-.card__actions{ display:flex; gap:8px; margin-top:8px }
+.card__footer{
+  padding:16px; border-top:1px solid var(--border);
+  display:flex; justify-content:flex-start; gap:8px;
+}
 
-/* ====== Buttons ====== */
 .btn{
   display:inline-flex; align-items:center; justify-content:center;
-  gap:8px;
-  padding:10px 14px;
-  border-radius:10px;
-  border:1px solid var(--border);
-  background:#fff; cursor:pointer;
-  transition:box-shadow .2s ease, transform .02s ease;
+  padding:10px 14px; border-radius:10px; border:1px solid var(--border);
+  background:var(--primary); color:var(--primary-contrast);
+  font-weight:600; cursor:pointer; text-decoration:none;
+  transition:transform .02s ease, box-shadow .2s ease, background .2s ease;
 }
-.btn:hover{ box-shadow:0 4px 12px rgba(0,0,0,.08) }
-.btn:active{ transform:translateY(1px) }
+.btn:hover{box-shadow:0 6px 16px rgba(0,0,0,.08)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{background:#f1f1f1; color:#aaa; cursor:not-allowed; border-color:#eee; box-shadow:none}
 
-.btn--primary{ background:var(--primary); color:var(--primary-contrast); border-color:#111 }
-.btn--ghost{ background:transparent }
-.btn[disabled]{ opacity:.5; cursor:not-allowed }
-
-.cta-row{ display:flex; justify-content:center; margin:20px 0 0 }
-
-/* ====== Wizard placeholder ====== */
-.placeholder{
-  border:1px dashed var(--border);
-  border-radius:12px;
-  padding:16px;
-  background:var(--bg-soft);
-}
-
-/* ====== Footer ====== */
-.app-footer{
-  max-width:1100px; margin:8px auto 24px; padding:0 16px;
-  color:var(--muted); font-size:13px; text-align:left;
-}
+.footer{max-width:1100px; margin:24px auto; padding:0 16px; color:var(--muted); font-size:12px}
