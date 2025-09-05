@@ -196,6 +196,7 @@ const MODELS: ModelCard[] = [
     name: 'NTS-PICO3',
     img: '/img/nts-pico3.jpg',
     // PICO3 datasheet nebyl dodán → tlačítko na landing zůstane disabled (viditelné)
+datasheet: 'https://www.elpromaelectronics.com/wp-content/uploads/woocommerce_uploads/2023/04/TimeSystems_NTS-pico3_brochure_070125-fqrtq4.pdf',
     tag: {
       cs: 'Kompaktní | NTP/PTP (edge)',
       en: 'Compact | NTP/PTP (edge)',
